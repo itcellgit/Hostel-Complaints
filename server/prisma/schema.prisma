@@ -1,0 +1,322 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum HostelType {
+  BOYS
+  GIRLS
+}
+
+enum UserRole {
+  ADMIN
+  PRINCIPAL
+  REGISTRAR
+  DEAN_INFRA
+  RECTOR
+  FACULTY
+  STUDENT
+}
+
+enum StaffRole {
+  RECTOR
+  FACULTY
+}
+
+enum PaymentMode {
+  CASH
+  ONLINE
+  CHEQUE
+  DD
+  OTHER
+}
+
+enum ComplaintCategory {
+  INFRASTRUCTURE
+  FACILITIES
+  DISCIPLINE
+  CLEANLINESS
+  FOOD
+  OTHERS
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  REJECTED
+}
+
+enum ComplainerRelation {
+  SELF
+  PARENT
+  OTHER
+}
+
+enum ComplaintActivityAction {
+  STATUS_CHANGE
+  COMMENT
+}
+
+// ---------- Society / academic structure ----------
+
+model College {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  programs    Program[]
+  hostelLinks HostelCollege[]
+  principals  User[]          @relation("PrincipalCollege")
+}
+
+model Program {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  collegeId String
+  createdAt DateTime @default(now())
+
+  college  College   @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  students Student[]
+
+  @@unique([collegeId, code])
+}
+
+// ---------- Hostels ----------
+
+model Hostel {
+  id            String     @id @default(cuid())
+  name          String
+  code          String     @unique
+  type          HostelType
+  address       String?
+  totalCapacity Int?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  collegeLinks     HostelCollege[]
+  staffAssignments StaffAssignment[]
+  students         Student[]
+  complaints       Complaint[]
+  deanInfraLinks   DeanInfraHostel[]
+  residentRules    HostelResidentRule[]
+}
+
+model HostelResidentRule {
+  id          String   @id @default(cuid())
+  hostelId    String
+  title       String
+  description String
+  kind        String   @default("DO")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  hostel Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+
+  @@index([hostelId])
+}
+
+// Many-to-many: which colleges' students may reside in a given hostel.
+// GIT's dedicated hostels have exactly one row here; shared hostels (other
+// colleges) can have many. Adding a new college/hostel later is data-only.
+model HostelCollege {
+  hostelId  String
+  collegeId String
+
+  hostel  Hostel  @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+  college College @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+
+  @@id([hostelId, collegeId])
+}
+
+// ---------- Auth ----------
+
+// loginId is the email for staff-type roles (Admin/Principal/Registrar/
+// Dean Infra/Rector/Faculty) and the USN for students, since students were
+// never issued an institutional email in the spec.
+model User {
+  id                 String    @id @default(cuid())
+  loginId            String    @unique
+  passwordHash       String
+  role               UserRole
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  principalCollegeId String?
+  lastLoginAt        DateTime?
+  // Set when the account owner submits "Forgot password?" on the login
+  // page. There's no email/SMS in this system (see README), so this just
+  // flags the account for whoever can reset it (Admin, or a Rector for
+  // their own hostel's students) — cleared when a reset actually happens.
+  passwordResetRequestedAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  principalCollege    College?            @relation("PrincipalCollege", fields: [principalCollegeId], references: [id])
+  staff               Staff?
+  student             Student?
+  deanInfraHostels    DeanInfraHostel[]
+  recordedFeePayments FeePayment[]        @relation("FeeRecordedBy")
+  assignedComplaints  Complaint[]         @relation("ComplaintAssignee")
+  closedComplaints    Complaint[]         @relation("ComplaintClosedBy")
+  complaintActivities ComplaintActivity[]
+}
+
+// Scopes a Dean Infra user to the hostel(s) they act on. Data-driven so a
+// future Dean Infra for a different college's hostels needs no code change.
+model DeanInfraHostel {
+  userId   String
+  hostelId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hostel Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+
+  @@id([userId, hostelId])
+}
+
+// ---------- Staff (Rector / Faculty Incharge) ----------
+
+model Staff {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String?
+  phone     String
+  userId    String?  @unique
+  createdAt DateTime @default(now())
+
+  user        User?             @relation(fields: [userId], references: [id])
+  assignments StaffAssignment[]
+}
+
+// Tenure history. Only one *active* (endDate null) RECTOR assignment per
+// hostel is allowed at a time (enforced in the service layer); a hostel can
+// have several concurrently-active FACULTY assignments.
+model StaffAssignment {
+  id        String    @id @default(cuid())
+  staffId   String
+  hostelId  String
+  roleType  StaffRole
+  startDate DateTime  @default(now())
+  endDate   DateTime?
+  createdAt DateTime  @default(now())
+
+  staff  Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  hostel Hostel @relation(fields: [hostelId], references: [id], onDelete: Cascade)
+
+  @@index([hostelId, roleType, endDate])
+}
+
+// ---------- Students & fees ----------
+
+// isActive=false means the student has left the hostel: blocks login and
+// filing new complaints, but roster/fee history is retained.
+model Student {
+  id               String   @id @default(cuid())
+  firstName        String
+  lastName         String
+  usn              String   @unique
+  programId        String
+  phone            String
+  address          String
+  parentName       String
+  parentPhone      String
+  parent2Name      String?
+  parent2Phone     String?
+  emergencyContact String?
+  hostelId         String
+  roomNo           String
+  isActive         Boolean  @default(true)
+  userId           String   @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  program     Program      @relation(fields: [programId], references: [id])
+  hostel      Hostel       @relation(fields: [hostelId], references: [id])
+  user        User         @relation(fields: [userId], references: [id])
+  feePayments FeePayment[]
+  complaints  Complaint[]
+
+  @@index([hostelId])
+}
+
+model FeePayment {
+  id               String      @id @default(cuid())
+  studentId        String
+  amount           Decimal     @db.Decimal(10, 2)
+  paymentDate      DateTime
+  academicYear     String
+  installmentLabel String?
+  mode             PaymentMode
+  receiptNo        String?
+  remarks          String?
+  recordedByUserId String
+  createdAt        DateTime    @default(now())
+
+  student        Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  recordedByUser User    @relation("FeeRecordedBy", fields: [recordedByUserId], references: [id])
+
+  @@index([studentId])
+}
+
+// ---------- Complaints ----------
+
+// Lifecycle: OPEN -> IN_PROGRESS -> RESOLVED -> CLOSED, or -> REJECTED.
+// Only Dean Infra drives OPEN/IN_PROGRESS/RESOLVED/REJECTED transitions.
+// Only the complainant Student or the hostel's current Faculty Incharge can
+// close a RESOLVED complaint (closedByUserId records who).
+model Complaint {
+  id                 String             @id @default(cuid())
+  complaintNo        String             @unique
+  hostelId           String
+  studentId          String
+  category           ComplaintCategory
+  description        String
+  complainerName     String
+  complainerPhone    String
+  complainerRelation ComplainerRelation @default(SELF)
+  status             ComplaintStatus    @default(OPEN)
+  attachmentPath     String?
+  assignedToUserId   String
+  resolutionRemarks  String?
+  closedByUserId     String?
+  closingComment     String?
+  resolvedAt         DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  hostel       Hostel              @relation(fields: [hostelId], references: [id])
+  student      Student             @relation(fields: [studentId], references: [id])
+  assignedTo   User                @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id])
+  closedByUser User?               @relation("ComplaintClosedBy", fields: [closedByUserId], references: [id])
+  activities   ComplaintActivity[]
+
+  @@index([hostelId, status])
+  @@index([studentId])
+}
+
+model ComplaintActivity {
+  id          String                  @id @default(cuid())
+  complaintId String
+  userId      String
+  action      ComplaintActivityAction
+  fromStatus  ComplaintStatus?
+  toStatus    ComplaintStatus?
+  comment     String?
+  createdAt   DateTime                @default(now())
+
+  complaint Complaint @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([complaintId])
+}
