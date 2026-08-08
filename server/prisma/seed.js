@@ -1,11 +1,10 @@
 import { PrismaClient } from '@prisma/client'
-import { hashPassword } from '../src/utils/password.js'
+import { hashPassword, DEMO_PASSWORD } from '../src/utils/password.js'
 
 const prisma = new PrismaClient()
 
 // Demo-only passwords, documented in the README. Every seeded account has
 // mustChangePassword=true except the bootstrap Admin.
-const DEMO_PASSWORD = 'Passw0rd!'
 
 // Backdates sample data across recent months so the dashboards' "per month"
 // trend charts show an actual trend instead of one spike in the current month.
