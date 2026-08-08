@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ListFilter, MessageSquareWarning } from 'lucide-react'
 import { complaintsApi } from '../../api/resources.js'
+import { useAuth } from '../../context/authContext.js'
 import { Card } from '../../components/ui/Card.jsx'
 import { Table } from '../../components/ui/Table.jsx'
 import { Pagination } from '../../components/ui/Pagination.jsx'
@@ -10,12 +11,19 @@ import { Spinner } from '../../components/ui/Spinner.jsx'
 import { StatusBadge } from '../../components/complaints/StatusBadge.jsx'
 import { CategoryBadge } from '../../components/complaints/CategoryBadge.jsx'
 import { CATEGORY_LABEL, STATUS_LABEL } from '../../lib/colors.js'
-import { formatDate } from '../../lib/format.js'
+import { formatDate, formatDateTime } from '../../lib/format.js'
 
 const PAGE_SIZE = 20
 
+// Only the oversight roles need the estimate-vs-actual completion columns —
+// Student/Faculty/cell roles already see the same info on the detail page
+// for the complaints they're directly working.
+const OVERSIGHT_ROLES = ['ADMIN', 'REGISTRAR', 'PRINCIPAL', 'DEAN_INFRA']
+
 export default function ComplaintListPage({ basePath, title = 'Complaints' }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const showEtaColumns = OVERSIGHT_ROLES.includes(user.role)
   const [params, setParams] = useSearchParams()
   const status = params.get('status') ?? ''
   const category = params.get('category') ?? ''
@@ -94,6 +102,12 @@ export default function ComplaintListPage({ basePath, title = 'Complaints' }) {
                 { key: 'category', header: 'Category', render: (r) => <CategoryBadge category={r.category} /> },
                 { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
                 { key: 'createdAt', header: 'Filed on', render: (r) => formatDate(r.createdAt) },
+                ...(showEtaColumns
+                  ? [
+                      { key: 'estimatedCompletionAt', header: 'Est. completion', render: (r) => formatDateTime(r.estimatedCompletionAt) },
+                      { key: 'resolvedAt', header: 'Completed on', render: (r) => formatDateTime(r.resolvedAt) },
+                    ]
+                  : []),
               ]}
               rows={complaints}
             />

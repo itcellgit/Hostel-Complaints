@@ -1,6 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/authContext.js'
-import { homeFor } from './lib/roles.js'
+import { homeFor, CELL_ROLES } from './lib/roles.js'
 import { ProtectedRoute } from './components/layout/ProtectedRoute.jsx'
 import { AppLayout } from './components/layout/AppLayout.jsx'
 import { Spinner } from './components/ui/Spinner.jsx'
@@ -87,6 +87,13 @@ export default function App() {
         <Route path="/dean" element={<AppLayout />}>
           <Route index element={<ComplaintListPage basePath="/dean" title="Complaint Queue" />} />
           <Route path=":id" element={<ComplaintDetailPage basePath="/dean" />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute roles={CELL_ROLES} />}>
+        <Route path="/cell" element={<AppLayout />}>
+          <Route index element={<ComplaintListPage basePath="/cell" title="Complaint Queue" />} />
+          <Route path=":id" element={<ComplaintDetailPage basePath="/cell" />} />
         </Route>
       </Route>
 

@@ -72,7 +72,19 @@ export const complaintsApi = {
     }
     return api.post('/complaints', data).then((r) => r.data.complaint)
   },
-  setStatus: (id, data) => api.patch(`/complaints/${id}/status`, data).then((r) => r.data.complaint),
+  setStatus: (id, data, file) => {
+    if (file) {
+      const formData = new FormData()
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== undefined) formData.append(key, value)
+      })
+      formData.append('resolutionImage', file)
+      return api.patch(`/complaints/${id}/status`, formData).then((r) => r.data.complaint)
+    }
+    return api.patch(`/complaints/${id}/status`, data).then((r) => r.data.complaint)
+  },
+  forward: (id, data) => api.post(`/complaints/${id}/forward`, data).then((r) => r.data.complaint),
+  setEta: (id, data) => api.patch(`/complaints/${id}/eta`, data).then((r) => r.data.complaint),
   close: (id, comment) => api.post(`/complaints/${id}/close`, { comment }).then((r) => r.data.complaint),
   comment: (id, comment) => api.post(`/complaints/${id}/comments`, { comment }).then((r) => r.data.activity),
 }

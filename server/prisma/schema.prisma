@@ -22,6 +22,11 @@ enum UserRole {
   RECTOR
   FACULTY
   STUDENT
+  EPMC
+  ENERGY_CELL
+  COMPUTER_CENTER
+  PRODUCTION_CELL
+  CIVIL_MAINTENANCE
 }
 
 enum StaffRole {
@@ -63,6 +68,7 @@ enum ComplainerRelation {
 enum ComplaintActivityAction {
   STATUS_CHANGE
   COMMENT
+  ETA_UPDATE
 }
 
 // ---------- Society / academic structure ----------
@@ -288,6 +294,8 @@ model Complaint {
   attachmentPath     String?
   assignedToUserId   String
   resolutionRemarks  String?
+  resolutionImagePath String?
+  estimatedCompletionAt DateTime?
   closedByUserId     String?
   closingComment     String?
   resolvedAt         DateTime?

@@ -1,3 +1,5 @@
+import { CELL_ROLES } from './cellRoles.js'
+
 // Builds Prisma `where` fragments that scope a query to what the signed-in
 // user is allowed to see. Kept in one place so every route filters
 // consistently instead of re-deriving role logic ad hoc.
@@ -53,6 +55,9 @@ export function complaintWhereForUser(user) {
     case 'STUDENT':
       return { studentId: user.studentId ?? '__none__' }
     default:
+      // Cell roles (EPMC, Energy Cell, etc.) aren't scoped to a hostel —
+      // they only ever see complaints currently forwarded to them.
+      if (CELL_ROLES.includes(user.role)) return { assignedToUserId: user.id }
       return { id: '__none__' }
   }
 }

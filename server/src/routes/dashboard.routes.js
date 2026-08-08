@@ -9,6 +9,22 @@ export const dashboardRouter = Router()
 dashboardRouter.use(requireAuth)
 
 const MONTHLY_TREND_MONTHS = 6
+const STATUS_KEYS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED']
+const CATEGORY_KEYS = ['INFRASTRUCTURE', 'FACILITIES', 'CLEANLINESS', 'FOOD', 'DISCIPLINE', 'OTHERS']
+
+function buildCategoryStatusBreakdown(rows) {
+  const breakdown = Object.fromEntries(
+    CATEGORY_KEYS.map((category) => [category, Object.fromEntries(STATUS_KEYS.map((status) => [status, 0]))]),
+  )
+
+  for (const row of rows) {
+    if (breakdown[row.category]) {
+      breakdown[row.category][row.status] = row._count
+    }
+  }
+
+  return breakdown
+}
 
 // Last N calendar months (oldest first, current month last), zero-filled so
 // a month with no complaints still shows up as a bar at 0 rather than being
@@ -45,9 +61,10 @@ async function monthlyComplaintCounts(where) {
 }
 
 async function complaintBreakdown(where) {
-  const [byStatus, byCategory, total, last30Days, monthly] = await Promise.all([
+  const [byStatus, byCategory, byCategoryStatusRows, total, last30Days, monthly] = await Promise.all([
     prisma.complaint.groupBy({ by: ['status'], where, _count: true }),
     prisma.complaint.groupBy({ by: ['category'], where, _count: true }),
+    prisma.complaint.groupBy({ by: ['category', 'status'], where, _count: true }),
     prisma.complaint.count({ where }),
     prisma.complaint.count({
       where: { ...where, createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
@@ -59,6 +76,7 @@ async function complaintBreakdown(where) {
     last30Days,
     byStatus: Object.fromEntries(byStatus.map((r) => [r.status, r._count])),
     byCategory: Object.fromEntries(byCategory.map((r) => [r.category, r._count])),
+    byCategoryStatus: buildCategoryStatusBreakdown(byCategoryStatusRows),
     monthly,
   }
 }

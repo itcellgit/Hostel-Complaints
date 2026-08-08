@@ -45,18 +45,31 @@ export default function StaffDashboardPage() {
     })),
   )
 
+  const statusLegendItems = Object.keys(STATUS_LABEL).map((key) => ({
+    key,
+    label: STATUS_LABEL[key],
+    color: STATUS_COLOR[key],
+  }))
   const statusData = Object.keys(STATUS_LABEL).map((key) => ({
     key,
     label: STATUS_LABEL[key],
     value: data.complaints.byStatus[key] ?? 0,
     color: STATUS_COLOR[key],
   }))
-  const categoryData = Object.keys(CATEGORY_LABEL).map((key) => ({
-    key,
-    label: CATEGORY_LABEL[key],
-    value: data.complaints.byCategory[key] ?? 0,
-    color: CATEGORY_COLOR[key].light,
-  }))
+  const categoryData = Object.keys(CATEGORY_LABEL).map((key) => {
+    const breakdown = data.complaints.byCategoryStatus?.[key] ?? {}
+    return {
+      key,
+      label: CATEGORY_LABEL[key],
+      value: data.complaints.byCategory[key] ?? 0,
+      color: CATEGORY_COLOR[key].light,
+      colors: Object.keys(STATUS_LABEL).reduce((acc, statusKey) => {
+        acc[statusKey] = STATUS_COLOR[statusKey]
+        return acc
+      }, {}),
+      ...Object.fromEntries(Object.keys(STATUS_LABEL).map((statusKey) => [statusKey, breakdown[statusKey] ?? 0])),
+    }
+  })
   const monthlyComplaintsData = data.complaints.monthly.map((m) => ({
     key: m.month,
     label: m.label,
@@ -76,7 +89,13 @@ export default function StaffDashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <BreakdownBarChart title="Complaints by status" data={statusData} />
-        <BreakdownBarChart title="Complaints by category" data={categoryData} />
+        <BreakdownBarChart
+          title="Complaints by category"
+          data={categoryData}
+          stacked
+          stackKeys={Object.keys(STATUS_LABEL)}
+          legendItems={statusLegendItems}
+        />
       </div>
 
       <BreakdownBarChart title="Complaints per month" data={monthlyComplaintsData} />

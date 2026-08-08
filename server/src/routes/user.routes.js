@@ -5,18 +5,21 @@ import { asyncHandler } from '../middleware/asyncHandler.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { generateTempPassword, hashPassword } from '../utils/password.js'
+import { CELL_ROLES } from '../utils/cellRoles.js'
 
-// Admin-managed logins for the three "office" roles. Student accounts are
+// Admin-managed logins for the "office" roles. Student accounts are
 // created alongside Student records (student.routes.js) and Rector/Faculty
 // accounts alongside Staff records (staff.routes.js) since those roles
 // always come with a domain record attached.
+const OFFICE_ROLES = ['PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES]
+
 export const userRouter = Router()
 userRouter.use(requireAuth, requireRole('ADMIN'))
 
 userRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const where = { role: { in: ['PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA'] } }
+    const where = { role: { in: OFFICE_ROLES } }
     if (req.query.role) where.role = req.query.role
     const users = await prisma.user.findMany({
       where,
@@ -37,7 +40,7 @@ userRouter.get(
 
 const createUserSchema = z.object({
   loginId: z.string().email(),
-  role: z.enum(['PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA']),
+  role: z.enum(OFFICE_ROLES),
   principalCollegeId: z.string().optional(),
   hostelIds: z.array(z.string()).optional(),
 })

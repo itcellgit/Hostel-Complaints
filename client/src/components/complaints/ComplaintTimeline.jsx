@@ -5,6 +5,7 @@ import { formatDateTime } from '../../lib/format.js'
 
 function activityText(a) {
   if (a.action === 'COMMENT') return 'commented'
+  if (a.action === 'ETA_UPDATE') return 'updated the estimated completion time'
   if (a.fromStatus) return `moved status from ${STATUS_LABEL[a.fromStatus]} to ${STATUS_LABEL[a.toStatus]}`
   return `set status to ${STATUS_LABEL[a.toStatus]}`
 }

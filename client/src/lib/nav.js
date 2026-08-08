@@ -34,6 +34,21 @@ export const NAV_BY_ROLE = {
   DEAN_INFRA: [
     { to: '/dean', label: 'Complaint Queue', end: true, icon: ClipboardList },
   ],
+  EPMC: [
+    { to: '/cell', label: 'Complaint Queue', end: true, icon: ClipboardList },
+  ],
+  ENERGY_CELL: [
+    { to: '/cell', label: 'Complaint Queue', end: true, icon: ClipboardList },
+  ],
+  COMPUTER_CENTER: [
+    { to: '/cell', label: 'Complaint Queue', end: true, icon: ClipboardList },
+  ],
+  PRODUCTION_CELL: [
+    { to: '/cell', label: 'Complaint Queue', end: true, icon: ClipboardList },
+  ],
+  CIVIL_MAINTENANCE: [
+    { to: '/cell', label: 'Complaint Queue', end: true, icon: ClipboardList },
+  ],
   RECTOR: [
     { to: '/staff', label: 'Dashboard', end: true, icon: LayoutDashboard },
     { to: '/staff/students', label: 'Students', icon: Users },

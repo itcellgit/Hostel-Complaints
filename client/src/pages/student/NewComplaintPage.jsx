@@ -66,7 +66,6 @@ export default function NewComplaintPage() {
             <Select value={complainerRelation} onChange={(e) => setComplainerRelation(e.target.value)}>
               <option value="SELF">Myself</option>
               <option value="PARENT">On behalf of my parent's concern</option>
-              <option value="OTHER">Other</option>
             </Select>
           </FormField>
 

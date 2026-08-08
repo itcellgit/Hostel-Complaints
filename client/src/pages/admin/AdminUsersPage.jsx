@@ -9,6 +9,7 @@ import { Modal } from '../../components/ui/Modal.jsx'
 import { FormField, Input, Select } from '../../components/ui/FormField.jsx'
 import { Spinner, ErrorBanner } from '../../components/ui/Spinner.jsx'
 import { CredentialsModal } from '../../components/ui/CredentialsModal.jsx'
+import { ROLE_LABEL } from '../../lib/roles.js'
 
 const emptyForm = { loginId: '', role: 'PRINCIPAL', principalCollegeId: '', hostelIds: [] }
 
@@ -80,7 +81,7 @@ export default function AdminUsersPage() {
             rowKey={(r) => r.id}
             columns={[
               { key: 'loginId', header: 'Login ID' },
-              { key: 'role', header: 'Role' },
+              { key: 'role', header: 'Role', render: (r) => ROLE_LABEL[r.role] ?? r.role },
               {
                 key: 'scope',
                 header: 'Scope',
@@ -151,6 +152,11 @@ export default function AdminUsersPage() {
                 <option value="PRINCIPAL">Principal</option>
                 <option value="REGISTRAR">Society Registrar</option>
                 <option value="DEAN_INFRA">GIT Dean Infra</option>
+                <option value="EPMC">EPMC</option>
+                <option value="ENERGY_CELL">Energy Cell</option>
+                <option value="COMPUTER_CENTER">Computer Center</option>
+                <option value="PRODUCTION_CELL">Production Cell</option>
+                <option value="CIVIL_MAINTENANCE">Civil Maintenance</option>
               </Select>
             </FormField>
             {form.role === 'PRINCIPAL' && (
