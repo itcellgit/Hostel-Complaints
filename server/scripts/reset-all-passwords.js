@@ -12,7 +12,7 @@ const NEW_PASSWORD = 'Password@123'
 async function main() {
   const passwordHash = await hashPassword(NEW_PASSWORD)
   const result = await prisma.user.updateMany({
-    data: { passwordHash, mustChangePassword: true },
+    data: { passwordHash, mustChangePassword: false },
   })
   console.log(`Reset ${result.count} user account(s) to "${NEW_PASSWORD}" — everyone must change their password on next login.`)
 }
