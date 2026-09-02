@@ -11,7 +11,7 @@ import { CELL_ROLES } from '../utils/cellRoles.js'
 // created alongside Student records (student.routes.js) and Rector/Faculty
 // accounts alongside Staff records (staff.routes.js) since those roles
 // always come with a domain record attached.
-const OFFICE_ROLES = ['PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES]
+const OFFICE_ROLES = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES]
 
 export const userRouter = Router()
 userRouter.use(requireAuth, requireRole('ADMIN'))
@@ -76,11 +76,13 @@ userRouter.post(
       return created
     })
 
-    res.status(201).json({ user, tempPassword })
+    const { passwordHash: _passwordHash, ...safeUser } = user
+    res.status(201).json({ user: safeUser, tempPassword })
   }),
 )
 
 const updateUserSchema = z.object({
+  loginId: z.string().email().optional(),
   isActive: z.boolean().optional(),
   principalCollegeId: z.string().optional(),
   hostelIds: z.array(z.string()).optional(),
@@ -97,6 +99,7 @@ userRouter.patch(
       await tx.user.update({
         where: { id: existing.id },
         data: {
+          loginId: data.loginId,
           isActive: data.isActive,
           principalCollegeId: data.principalCollegeId,
         },
@@ -111,7 +114,15 @@ userRouter.patch(
 
     const user = await prisma.user.findUnique({
       where: { id: existing.id },
-      include: { deanInfraHostels: true, principalCollege: true },
+      select: {
+        id: true,
+        loginId: true,
+        role: true,
+        isActive: true,
+        passwordResetRequestedAt: true,
+        principalCollege: { select: { id: true, name: true, code: true } },
+        deanInfraHostels: { include: { hostel: { select: { id: true, name: true } } } },
+      },
     })
     res.json({ user })
   }),

@@ -10,6 +10,7 @@ import {
   UserCircle,
   Wallet,
   BookOpen,
+  FilePlus2,
 } from 'lucide-react'
 
 export const NAV_BY_ROLE = {
@@ -53,6 +54,7 @@ export const NAV_BY_ROLE = {
     { to: '/staff', label: 'Dashboard', end: true, icon: LayoutDashboard },
     { to: '/staff/students', label: 'Students', icon: Users },
     { to: '/staff/complaints', label: 'Complaints', icon: MessageSquareWarning },
+    { to: '/staff/complaints/new', label: 'Raise complaint', icon: FilePlus2 },
   ],
   FACULTY: [
     { to: '/staff', label: 'Dashboard', end: true, icon: LayoutDashboard },

@@ -103,10 +103,10 @@ export default function ComplaintDetailPage({ basePath }) {
   if (error) return <ErrorBanner message="Could not load this complaint." />
 
   const { complaint, activities } = data
-  const isOwnComplaint = user.role === 'STUDENT' && complaint.student.id === user.studentId
+  const isOwnComplaint = user.role === 'STUDENT' && complaint.student?.id === user.studentId
   const isCellRole = CELL_ROLES.includes(user.role)
   const isAssignee = complaint.assignedTo?.id === user.id
-  const canComment = user.role === 'DEAN_INFRA' || user.role === 'FACULTY' || isCellRole || isOwnComplaint
+  const canComment = user.role === 'DEAN_INFRA' || user.role === 'FACULTY' || user.role === 'RECTOR' || isCellRole || isOwnComplaint
   const canClose = complaint.status === 'RESOLVED' && (isOwnComplaint || user.role === 'FACULTY')
 
   const canForward = isAssignee && user.role === 'DEAN_INFRA' && complaint.status === 'OPEN'
@@ -147,22 +147,38 @@ export default function ComplaintDetailPage({ basePath }) {
                 <dt className="text-slate-500 dark:text-slate-400">Hostel</dt>
                 <dd className="mt-0.5 text-slate-800 dark:text-slate-100">{complaint.hostel.name}</dd>
               </div>
-              <div>
-                <dt className="text-slate-500 dark:text-slate-400">Student</dt>
-                <dd className="mt-0.5 text-slate-800 dark:text-slate-100">
-                  {complaint.student.firstName} {complaint.student.lastName} ({complaint.student.usn}) — Room{' '}
-                  {complaint.student.roomNo ?? '—'}
-                  {!complaint.student.isActive && (
-                    <span className="ml-1 text-xs text-red-600">(no longer a resident)</span>
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-slate-500 dark:text-slate-400">Complainer</dt>
-                <dd className="mt-0.5 text-slate-800 dark:text-slate-100">
-                  {complaint.complainerName} · {complaint.complainerPhone} · {complaint.complainerRelation}
-                </dd>
-              </div>
+              {complaint.student ? (
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Student</dt>
+                  <dd className="mt-0.5 text-slate-800 dark:text-slate-100">
+                    {complaint.student.firstName} {complaint.student.lastName} ({complaint.student.usn}) — Room{' '}
+                    {complaint.student.roomNo ?? '—'}
+                    {!complaint.student.isActive && (
+                      <span className="ml-1 text-xs text-red-600">(no longer a resident)</span>
+                    )}
+                  </dd>
+                </div>
+              ) : (
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Room</dt>
+                  <dd className="mt-0.5 text-slate-800 dark:text-slate-100">{complaint.roomNo ?? 'Common area'}</dd>
+                </div>
+              )}
+              {complaint.student ? (
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Complainer</dt>
+                  <dd className="mt-0.5 text-slate-800 dark:text-slate-100">
+                    {complaint.complainerName} · {complaint.complainerPhone} · {complaint.complainerRelation}
+                  </dd>
+                </div>
+              ) : (
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Reported by</dt>
+                  <dd className="mt-0.5 text-slate-800 dark:text-slate-100">
+                    {complaint.complainerName} · {complaint.complainerPhone}
+                  </dd>
+                </div>
+              )}
               {complaint.assignedTo && !['CLOSED', 'REJECTED'].includes(complaint.status) && (
                 <div>
                   <dt className="text-slate-500 dark:text-slate-400">Currently with</dt>
@@ -185,7 +201,7 @@ export default function ComplaintDetailPage({ basePath }) {
               )}
               {complaint.attachmentPath && (
                 <div className="col-span-2">
-                  <dt className="text-slate-500 dark:text-slate-400">Photo submitted by student</dt>
+                  <dt className="text-slate-500 dark:text-slate-400">Attached photo</dt>
                   <dd className="mt-1">
                     <a href={complaint.attachmentPath} target="_blank" rel="noreferrer">
                       <img

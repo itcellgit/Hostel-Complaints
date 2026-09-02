@@ -98,7 +98,7 @@ export default function ComplaintListPage({ basePath, title = 'Complaints' }) {
               columns={[
                 { key: 'complaintNo', header: 'No.' },
                 { key: 'hostel', header: 'Hostel', render: (r) => r.hostel.name },
-                { key: 'student', header: 'Student', render: (r) => `${r.student.firstName} ${r.student.lastName} (${r.student.usn})` },
+                { key: 'student', header: 'Student', render: (r) => (r.student ? `${r.student.firstName} ${r.student.lastName} (${r.student.usn})` : 'Hostel-wide') },
                 { key: 'category', header: 'Category', render: (r) => <CategoryBadge category={r.category} /> },
                 { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
                 { key: 'createdAt', header: 'Filed on', render: (r) => formatDate(r.createdAt) },

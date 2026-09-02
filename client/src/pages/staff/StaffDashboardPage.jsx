@@ -122,7 +122,7 @@ export default function StaffDashboardPage() {
           onRowClick={(r) => navigate(`/staff/complaints/${r.id}`)}
           columns={[
             { key: 'complaintNo', header: 'No.' },
-            { key: 'student', header: 'Student', render: (r) => `${r.student.firstName} ${r.student.lastName}` },
+            { key: 'student', header: 'Student', render: (r) => (r.student ? `${r.student.firstName} ${r.student.lastName}` : 'Hostel-wide') },
             { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
             { key: 'createdAt', header: 'Filed on', render: (r) => formatDate(r.createdAt) },
           ]}

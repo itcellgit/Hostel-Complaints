@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, Plus, KeyRound, PowerOff, Power, AlertCircle } from 'lucide-react'
+import { ShieldCheck, Plus, KeyRound, PowerOff, Power, AlertCircle, Pencil } from 'lucide-react'
 import { collegesApi, hostelsApi, usersApi } from '../../api/resources.js'
 import { Card } from '../../components/ui/Card.jsx'
 import { Table } from '../../components/ui/Table.jsx'
@@ -22,6 +22,8 @@ export default function AdminUsersPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [credentials, setCredentials] = useState(null)
+  const [editingUser, setEditingUser] = useState(null)
+  const [editForm, setEditForm] = useState(null)
 
   function invalidate() {
     queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -41,6 +43,31 @@ export default function AdminUsersPage() {
     mutationFn: ({ id, isActive }) => usersApi.update(id, { isActive }),
     onSuccess: invalidate,
   })
+
+  const editMutation = useMutation({
+    mutationFn: () => usersApi.update(editingUser.id, editForm),
+    onSuccess: () => {
+      invalidate()
+      setEditingUser(null)
+      setEditForm(null)
+    },
+  })
+
+  function openEdit(user) {
+    setEditingUser(user)
+    setEditForm({
+      loginId: user.loginId,
+      principalCollegeId: user.principalCollege?.id ?? '',
+      hostelIds: user.deanInfraHostels.map((l) => l.hostel.id),
+    })
+  }
+
+  function toggleEditHostel(hostelId) {
+    setEditForm((f) => ({
+      ...f,
+      hostelIds: f.hostelIds.includes(hostelId) ? f.hostelIds.filter((id) => id !== hostelId) : [...f.hostelIds, hostelId],
+    }))
+  }
 
   const resetMutation = useMutation({
     mutationFn: (id) => usersApi.resetPassword(id),
@@ -112,6 +139,10 @@ export default function AdminUsersPage() {
                 header: '',
                 render: (r) => (
                   <div className="flex gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
+                      <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
+                      Edit
+                    </Button>
                     <Button variant="ghost" size="sm" onClick={() => resetMutation.mutate(r.id)}>
                       <KeyRound className="h-3.5 w-3.5" strokeWidth={2.25} />
                       Reset password
@@ -149,6 +180,7 @@ export default function AdminUsersPage() {
             </FormField>
             <FormField label="Role">
               <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+                <option value="ADMIN">Admin</option>
                 <option value="PRINCIPAL">Principal</option>
                 <option value="REGISTRAR">Society Registrar</option>
                 <option value="DEAN_INFRA">GIT Dean Infra</option>
@@ -182,6 +214,52 @@ export default function AdminUsersPage() {
               </FormField>
             )}
             <ErrorBanner message={createMutation.error?.response?.data?.error} />
+          </div>
+        </Modal>
+      )}
+
+      {editingUser && editForm && (
+        <Modal
+          title={`Edit ${ROLE_LABEL[editingUser.role] ?? editingUser.role}`}
+          onClose={() => { setEditingUser(null); setEditForm(null) }}
+          footer={
+            <Button disabled={editMutation.isPending} onClick={() => editMutation.mutate()}>
+              Save changes
+            </Button>
+          }
+        >
+          <div className="space-y-3">
+            <FormField label="Login email">
+              <Input
+                type="email"
+                value={editForm.loginId}
+                onChange={(e) => setEditForm({ ...editForm, loginId: e.target.value })}
+                required
+              />
+            </FormField>
+            {editingUser.role === 'PRINCIPAL' && (
+              <FormField label="College">
+                <Select value={editForm.principalCollegeId} onChange={(e) => setEditForm({ ...editForm, principalCollegeId: e.target.value })}>
+                  <option value="">Select a college…</option>
+                  {(colleges ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </Select>
+              </FormField>
+            )}
+            {editingUser.role === 'DEAN_INFRA' && (
+              <FormField label="Hostels this Dean Infra handles">
+                <div className="space-y-1.5 rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+                  {(hostels ?? []).map((h) => (
+                    <label key={h.id} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={editForm.hostelIds.includes(h.id)} onChange={() => toggleEditHostel(h.id)} />
+                      {h.name}
+                    </label>
+                  ))}
+                </div>
+              </FormField>
+            )}
+            <ErrorBanner message={editMutation.error?.response?.data?.error} />
           </div>
         </Modal>
       )}

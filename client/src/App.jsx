@@ -28,6 +28,7 @@ import PrincipalStudentDetailPage from './pages/principal/PrincipalStudentDetail
 import StaffDashboardPage from './pages/staff/StaffDashboardPage.jsx'
 import StaffStudentsPage from './pages/staff/StaffStudentsPage.jsx'
 import StaffStudentDetailPage from './pages/staff/StaffStudentDetailPage.jsx'
+import StaffNewComplaintPage from './pages/staff/StaffNewComplaintPage.jsx'
 
 import StudentDashboardPage from './pages/student/StudentDashboardPage.jsx'
 import StudentProfilePage from './pages/student/StudentProfilePage.jsx'
@@ -104,6 +105,9 @@ export default function App() {
           <Route path="students/:id" element={<StaffStudentDetailPage />} />
           <Route path="complaints" element={<ComplaintListPage basePath="/staff/complaints" />} />
           <Route path="complaints/:id" element={<ComplaintDetailPage basePath="/staff/complaints" />} />
+          <Route element={<ProtectedRoute roles={['RECTOR']} />}>
+            <Route path="complaints/new" element={<StaffNewComplaintPage />} />
+          </Route>
         </Route>
       </Route>
 

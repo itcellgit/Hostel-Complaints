@@ -284,12 +284,13 @@ model Complaint {
   id                 String             @id @default(cuid())
   complaintNo        String             @unique
   hostelId           String
-  studentId          String
+  studentId          String?
+  roomNo             String?
   category           ComplaintCategory
   description        String
   complainerName     String
   complainerPhone    String
-  complainerRelation ComplainerRelation @default(SELF)
+  complainerRelation ComplainerRelation?
   status             ComplaintStatus    @default(OPEN)
   attachmentPath     String?
   assignedToUserId   String
@@ -304,7 +305,7 @@ model Complaint {
   updatedAt          DateTime           @updatedAt
 
   hostel       Hostel              @relation(fields: [hostelId], references: [id])
-  student      Student             @relation(fields: [studentId], references: [id])
+  student      Student?            @relation(fields: [studentId], references: [id])
   assignedTo   User                @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id])
   closedByUser User?               @relation("ComplaintClosedBy", fields: [closedByUserId], references: [id])
   activities   ComplaintActivity[]

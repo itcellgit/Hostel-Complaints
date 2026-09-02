@@ -59,7 +59,7 @@ async function loadComplaintScoped(req) {
 }
 
 async function withFeeSummary(complaint) {
-  const feeSummary = await feeSummaryForStudent(complaint.studentId)
+  const feeSummary = complaint.studentId ? await feeSummaryForStudent(complaint.studentId) : null
   return { ...complaint, feeSummary }
 }
 
@@ -98,33 +98,83 @@ complaintRouter.get(
 )
 
 // complainerName/complainerPhone are deliberately NOT accepted from the
-// client — they're always the logged-in student's own name/phone, set
-// server-side below, so a complaint can never be filed under someone
-// else's identity.
+// client — they're always the logged-in filer's own name/phone (student or
+// Rector), set server-side below, so a complaint can never be filed under
+// someone else's identity.
 const createComplaintSchema = z.object({
   category: z.enum(['INFRASTRUCTURE', 'FACILITIES', 'DISCIPLINE', 'CLEANLINESS', 'FOOD', 'OTHERS']),
   description: z.string().min(10, 'Please describe the complaint in a bit more detail'),
-  complainerRelation: z.enum(['SELF', 'PARENT', 'OTHER']).default('SELF'),
+  complainerRelation: z.enum(['SELF', 'PARENT', 'OTHER']).optional(),
+  // Rector-only: which of their assigned hostels this is for, and
+  // optionally which (typically vacant) room it concerns.
+  hostelId: z.string().optional(),
+  roomNo: z.string().optional(),
 })
 
-complaintRouter.post(
-  '/',
-  requireRole('STUDENT'),
-  complaintUpload.single('file'),
-  asyncHandler(async (req, res, next) => {
-    const data = createComplaintSchema.parse({
-      category: req.body.category,
-      description: req.body.description,
-      complainerRelation: req.body.complainerRelation ?? 'SELF',
-    })
-
+// Resolves who's assigned/what identity a new complaint is filed under,
+// depending on whether a Student is raising it for themselves or a Rector
+// is raising a hostel-wide (or vacant-room) complaint with no resident.
+async function resolveFiler(req, data, next) {
+  if (req.user.role === 'STUDENT') {
     const student = await prisma.student.findUnique({
       where: { id: req.user.studentId ?? '__none__' },
       include: { hostel: { select: { id: true, code: true } } },
     })
     if (!student || !student.isActive) {
-      return next(forbidden('Only an active hostel resident can file a complaint'))
+      next(forbidden('Only an active hostel resident can file a complaint'))
+      return null
     }
+    return {
+      hostelId: student.hostelId,
+      hostelCode: student.hostel.code,
+      studentId: student.id,
+      roomNo: null,
+      complainerName: `${student.firstName} ${student.lastName}`,
+      complainerPhone: student.phone,
+      complainerRelation: data.complainerRelation ?? 'SELF',
+    }
+  }
+
+  // RECTOR
+  if (!data.hostelId || !(req.user.hostelIds ?? []).includes(data.hostelId)) {
+    next(badRequest('You can only raise complaints for a hostel you are assigned to'))
+    return null
+  }
+  const hostel = await prisma.hostel.findUnique({ where: { id: data.hostelId }, select: { id: true, code: true } })
+  if (!hostel) {
+    next(badRequest('Hostel not found'))
+    return null
+  }
+  const staff = await prisma.staff.findUnique({
+    where: { userId: req.user.id },
+    select: { firstName: true, lastName: true, phone: true },
+  })
+  return {
+    hostelId: hostel.id,
+    hostelCode: hostel.code,
+    studentId: null,
+    roomNo: data.roomNo?.trim() || null,
+    complainerName: staff ? `${staff.firstName} ${staff.lastName ?? ''}`.trim() : req.user.loginId,
+    complainerPhone: staff?.phone ?? '',
+    complainerRelation: null,
+  }
+}
+
+complaintRouter.post(
+  '/',
+  requireRole('STUDENT', 'RECTOR'),
+  complaintUpload.single('file'),
+  asyncHandler(async (req, res, next) => {
+    const data = createComplaintSchema.parse({
+      category: req.body.category,
+      description: req.body.description,
+      complainerRelation: req.body.complainerRelation,
+      hostelId: req.body.hostelId,
+      roomNo: req.body.roomNo,
+    })
+
+    const filer = await resolveFiler(req, data, next)
+    if (!filer) return
 
     // Disciplinary complaints skip Dean Infra entirely and go straight to
     // the hostel's Faculty Incharge, since Dean Infra only handles
@@ -132,7 +182,7 @@ complaintRouter.post(
     let assignedToUserId
     if (data.category === 'DISCIPLINE') {
       const facultyAssignment = await prisma.staffAssignment.findFirst({
-        where: { hostelId: student.hostelId, roleType: 'FACULTY', endDate: null },
+        where: { hostelId: filer.hostelId, roleType: 'FACULTY', endDate: null },
         select: { staff: { select: { userId: true } } },
       })
       if (!facultyAssignment?.staff?.userId) {
@@ -141,7 +191,7 @@ complaintRouter.post(
       assignedToUserId = facultyAssignment.staff.userId
     } else {
       const deanLink = await prisma.deanInfraHostel.findFirst({
-        where: { hostelId: student.hostelId },
+        where: { hostelId: filer.hostelId },
         select: { userId: true },
       })
       if (!deanLink) {
@@ -153,17 +203,20 @@ complaintRouter.post(
     let complaint
     for (let attempt = 0; attempt < 3 && !complaint; attempt += 1) {
       try {
-        const complaintNo = await nextComplaintNo(student.hostelId, student.hostel.code)
+        const complaintNo = await nextComplaintNo(filer.hostelId, filer.hostelCode)
         // eslint-disable-next-line no-await-in-loop
         complaint = await prisma.complaint.create({
           data: {
             complaintNo,
-            hostelId: student.hostelId,
-            studentId: student.id,
+            hostelId: filer.hostelId,
+            studentId: filer.studentId,
+            roomNo: filer.roomNo,
             assignedToUserId,
-            complainerName: `${student.firstName} ${student.lastName}`,
-            complainerPhone: student.phone,
-            ...data,
+            complainerName: filer.complainerName,
+            complainerPhone: filer.complainerPhone,
+            complainerRelation: filer.complainerRelation,
+            category: data.category,
+            description: data.description,
           },
           include: complaintInclude,
         })
@@ -427,7 +480,7 @@ const commentSchema = z.object({ comment: z.string().min(1) })
 
 complaintRouter.post(
   '/:id/comments',
-  requireRole('DEAN_INFRA', 'FACULTY', 'STUDENT', ...CELL_ROLES),
+  requireRole('DEAN_INFRA', 'FACULTY', 'RECTOR', 'STUDENT', ...CELL_ROLES),
   asyncHandler(async (req, res, next) => {
     const complaint = await loadComplaintScoped(req)
     if (req.user.role === 'STUDENT' && complaint.studentId !== req.user.studentId) {
