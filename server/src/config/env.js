@@ -10,7 +10,13 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   host: process.env.HOST || '0.0.0.0',
   port: Number(process.env.PORT || 4000),
-  clientOrigin: process.env.CLIENT_ORIGIN || 'http://10.22.0.151:5173',
+  // Comma-separated list so the Vite web client and (optionally) Expo web
+  // during dev can both be allowed. Native builds send no Origin header and
+  // are unaffected by CORS.
+  clientOrigin: (process.env.CLIENT_ORIGIN || 'http://10.22.0.151:5173')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean),
   databaseUrl: required('DATABASE_URL'),
   jwtAccessSecret: required('JWT_ACCESS_SECRET'),
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),

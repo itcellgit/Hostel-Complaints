@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "KLS Hostel Complaints",
+    "slug": "kls-hostel-complaints",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "klshcp",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "org.kls.hostelcomplaints"
+    },
+    "android": {
+      "package": "org.kls.hostelcomplaints",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1e3a8a"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow the app to attach photos to your complaints.",
+          "cameraPermission": "Allow the app to take a photo for your complaint."
+        }
+      ],
+      "expo-status-bar",
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#1e3a8a"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "apiUrl": "http://10.22.0.151:4000"
+    }
+  }
+}

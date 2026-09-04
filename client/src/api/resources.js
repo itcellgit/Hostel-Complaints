@@ -31,6 +31,7 @@ export const staffApi = {
   get: (id) => api.get(`/staff/${id}`).then((r) => r.data.staff),
   create: (data) => api.post('/staff', data).then((r) => r.data),
   update: (id, data) => api.patch(`/staff/${id}`, data).then((r) => r.data.staff),
+  remove: (id) => api.delete(`/staff/${id}`),
   setStatus: (id, isActive) => api.patch(`/staff/${id}/status`, { isActive }),
   resetPassword: (id) => api.post(`/staff/${id}/reset-password`).then((r) => r.data.tempPassword),
   addAssignment: (id, data) => api.post(`/staff/${id}/assignments`, data).then((r) => r.data.assignment),

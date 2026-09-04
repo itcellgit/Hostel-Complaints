@@ -17,12 +17,18 @@ import { unauthorized, badRequest } from '../utils/httpError.js'
 
 export const authRouter = Router()
 
-async function issueSession(res, user) {
+// Web clients rely on the httpOnly cookies set here and ignore any tokens in
+// the body. The mobile app can't read httpOnly cookies, so when it opts in
+// with `X-Client: mobile` we also hand the tokens back in the JSON body for
+// it to keep in expo-secure-store. `tokens` is null (and the response shape
+// unchanged) for every other caller.
+async function issueSession(req, res, user) {
   const claims = await buildAccessClaims(user)
   const accessToken = signAccessToken(claims)
   const refreshToken = signRefreshToken(user.id)
   setAuthCookies(res, { accessToken, refreshToken })
-  return claims
+  const tokens = req.get('x-client') === 'mobile' ? { accessToken, refreshToken } : null
+  return { claims, tokens }
 }
 
 async function displayNameFor(user) {
@@ -59,17 +65,21 @@ authRouter.post(
     const valid = await comparePassword(password, user.passwordHash)
     if (!valid) return next(unauthorized('Invalid credentials'))
 
-    const claims = await issueSession(res, user)
+    const { claims, tokens } = await issueSession(req, res, user)
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
 
-    res.json({ user: { ...claims, displayName: await displayNameFor(user) } })
+    res.json({ user: { ...claims, displayName: await displayNameFor(user) }, tokens })
   }),
 )
 
 authRouter.post(
   '/refresh',
   asyncHandler(async (req, res, next) => {
-    const token = req.cookies?.[REFRESH_COOKIE]
+    // Cookie for web; the mobile app sends its stored refresh token in the
+    // body or as a Bearer header since it has no cookie jar.
+    const header = req.get('authorization')
+    const bearer = header && header.startsWith('Bearer ') ? header.slice(7).trim() : null
+    const token = req.cookies?.[REFRESH_COOKIE] || req.body?.refreshToken || bearer
     if (!token) return next(unauthorized('Not signed in'))
 
     let payload
@@ -82,8 +92,8 @@ authRouter.post(
     const user = await prisma.user.findUnique({ where: { id: payload.sub } })
     if (!user || !user.isActive) return next(unauthorized('Session expired'))
 
-    const claims = await issueSession(res, user)
-    res.json({ user: { ...claims, displayName: await displayNameFor(user) } })
+    const { claims, tokens } = await issueSession(req, res, user)
+    res.json({ user: { ...claims, displayName: await displayNameFor(user) }, tokens })
   }),
 )
 
@@ -146,7 +156,7 @@ authRouter.post(
       data: { passwordHash, mustChangePassword: false },
     })
 
-    const claims = await issueSession(res, updated)
-    res.json({ user: { ...claims, displayName: await displayNameFor(updated) } })
+    const { claims, tokens } = await issueSession(req, res, updated)
+    res.json({ user: { ...claims, displayName: await displayNameFor(updated) }, tokens })
   }),
 )

@@ -12,6 +12,7 @@ import { badRequest, forbidden, notFound } from '../utils/httpError.js'
 import { nextComplaintNo } from '../utils/complaintNo.js'
 import { feeSummaryForStudent } from '../services/feeSummary.js'
 import { CELL_ROLES } from '../utils/cellRoles.js'
+import { sendPushToUsers } from '../services/push.js'
 
 export const complaintRouter = Router()
 complaintRouter.use(requireAuth)
@@ -63,6 +64,25 @@ async function withFeeSummary(complaint) {
   return { ...complaint, feeSummary }
 }
 
+// The complainant's User id (for push), or null for a hostel-wide complaint.
+async function complainantUserId(complaint) {
+  if (!complaint.studentId) return null
+  const student = await prisma.student.findUnique({
+    where: { id: complaint.studentId },
+    select: { userId: true },
+  })
+  return student?.userId ?? null
+}
+
+// Push to a set of user ids, excluding whoever triggered the action so people
+// aren't notified about their own moves. Fire-and-forget.
+function notify(userIds, actorId, complaint, title, body) {
+  sendPushToUsers(
+    userIds.filter((id) => id && id !== actorId),
+    { title, body, data: { type: 'complaint', complaintId: complaint.id } },
+  )
+}
+
 complaintRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -70,6 +90,16 @@ complaintRouter.get(
     if (req.query.status) where.status = req.query.status
     if (req.query.category) where.category = req.query.category
     if (req.query.hostelId) where.hostelId = req.query.hostelId
+    if (req.query.q) {
+      const q = String(req.query.q)
+      where.OR = [
+        { complaintNo: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { complainerName: { contains: q, mode: 'insensitive' } },
+        { roomNo: { contains: q, mode: 'insensitive' } },
+        { student: { usn: { contains: q, mode: 'insensitive' } } },
+      ]
+    }
     if (req.query.from || req.query.to) {
       where.createdAt = {}
       if (req.query.from) where.createdAt.gte = new Date(req.query.from)
@@ -242,6 +272,14 @@ complaintRouter.post(
       data: { complaintId: complaint.id, userId: req.user.id, action: 'STATUS_CHANGE', toStatus: 'OPEN' },
     })
 
+    notify(
+      [assignedToUserId],
+      req.user.id,
+      complaint,
+      `New complaint ${complaint.complaintNo}`,
+      `${complaint.category} — ${filer.complainerName}`,
+    )
+
     res.status(201).json({ complaint: await withFeeSummary(complaint), attachmentPath })
   }),
 )
@@ -304,6 +342,14 @@ complaintRouter.post(
       },
     })
 
+    notify(
+      [target.id, await complainantUserId(complaint)],
+      req.user.id,
+      complaint,
+      `Complaint ${complaint.complaintNo} forwarded`,
+      `Now with ${role.replace(/_/g, ' ')}`,
+    )
+
     res.json({ complaint: await withFeeSummary(updated) })
   }),
 )
@@ -344,6 +390,14 @@ complaintRouter.patch(
         comment: `Estimated completion set to ${eta.toLocaleString('en-IN')}${comment ? `: ${comment}` : ''}`,
       },
     })
+
+    notify(
+      [await complainantUserId(complaint)],
+      req.user.id,
+      complaint,
+      `Update on ${complaint.complaintNo}`,
+      `Estimated completion: ${eta.toLocaleDateString('en-IN')}`,
+    )
 
     res.json({ complaint: await withFeeSummary(updated) })
   }),
@@ -428,6 +482,15 @@ complaintRouter.patch(
       },
     })
 
+    const verb = status === 'RESOLVED' ? 'resolved' : status === 'REJECTED' ? 'rejected' : 'updated'
+    notify(
+      [await complainantUserId(complaint)],
+      req.user.id,
+      complaint,
+      `Complaint ${complaint.complaintNo} ${verb}`,
+      resolutionRemarks || `Status is now ${status}`,
+    )
+
     res.json({ complaint: await withFeeSummary(updated) })
   }),
 )
@@ -472,6 +535,14 @@ complaintRouter.post(
       },
     })
 
+    notify(
+      [complaint.assignedToUserId, await complainantUserId(complaint)],
+      req.user.id,
+      complaint,
+      `Complaint ${complaint.complaintNo} closed`,
+      comment || 'The complaint has been closed.',
+    )
+
     res.json({ complaint: await withFeeSummary(updated) })
   }),
 )
@@ -492,6 +563,17 @@ complaintRouter.post(
       data: { complaintId: complaint.id, userId: req.user.id, action: 'COMMENT', comment },
       include: { user: { select: { id: true, loginId: true, role: true } } },
     })
+
+    // Notify the other side: the assignee hears from the complainant and
+    // vice versa.
+    notify(
+      [complaint.assignedToUserId, await complainantUserId(complaint)],
+      req.user.id,
+      complaint,
+      `New comment on ${complaint.complaintNo}`,
+      comment,
+    )
+
     res.status(201).json({ activity })
   }),
 )

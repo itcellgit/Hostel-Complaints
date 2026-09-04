@@ -115,14 +115,72 @@ const updateStaffSchema = z.object({
   firstName: z.string().min(1).optional(),
   lastName: z.string().optional(),
   phone: z.string().min(6).optional(),
+  // The login email lives on the linked User, not Staff — updated together.
+  loginId: z.string().email('Login must be a valid email').optional(),
 })
 
 staffRouter.patch(
   '/:id',
-  asyncHandler(async (req, res) => {
-    const data = updateStaffSchema.parse(req.body)
-    const staff = await prisma.staff.update({ where: { id: req.params.id }, data })
+  asyncHandler(async (req, res, next) => {
+    const { loginId, ...staffData } = updateStaffSchema.parse(req.body)
+
+    const existing = await prisma.staff.findUnique({ where: { id: req.params.id } })
+    if (!existing) return next(notFound('Staff member not found'))
+
+    if (loginId) {
+      const clash = await prisma.user.findFirst({
+        where: { loginId, NOT: { id: existing.userId ?? '__none__' } },
+        select: { id: true },
+      })
+      if (clash) return next(conflict('That email is already used by another account.'))
+    }
+
+    const staff = await prisma.$transaction(async (tx) => {
+      if (loginId && existing.userId) {
+        await tx.user.update({ where: { id: existing.userId }, data: { loginId } })
+      }
+      return tx.staff.update({
+        where: { id: existing.id },
+        data: staffData,
+        include: { user: { select: { loginId: true, isActive: true, role: true } } },
+      })
+    })
     res.json({ staff })
+  }),
+)
+
+// Hard-delete a staff member and their login. Refused while they hold an
+// active assignment (end the tenure first) or once they have complaint /
+// fee-record history (Postgres FK — disable the login instead).
+staffRouter.delete(
+  '/:id',
+  asyncHandler(async (req, res, next) => {
+    const staff = await prisma.staff.findUnique({
+      where: { id: req.params.id },
+      include: { assignments: { where: { endDate: null }, select: { id: true } } },
+    })
+    if (!staff) return next(notFound('Staff member not found'))
+    if (staff.assignments.length > 0) {
+      return next(conflict('End this person’s active tenure before deleting them.'))
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.staff.delete({ where: { id: staff.id } })
+        if (staff.userId) await tx.user.delete({ where: { id: staff.userId } })
+      })
+    } catch (err) {
+      if (err?.code === 'P2003') {
+        return next(
+          conflict(
+            'This person has complaint or fee-record history and can’t be deleted. Disable their login instead.',
+          ),
+        )
+      }
+      throw err
+    }
+
+    res.status(204).end()
   }),
 )
 

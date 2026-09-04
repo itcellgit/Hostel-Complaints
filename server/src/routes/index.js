@@ -8,6 +8,7 @@ import { complaintRouter } from './complaint.routes.js'
 import { userRouter } from './user.routes.js'
 import { dashboardRouter } from './dashboard.routes.js'
 import { hostelResidentRuleRouter } from './hostelResidentRule.routes.js'
+import { deviceRouter } from './device.routes.js'
 
 export const router = Router()
 
@@ -23,3 +24,4 @@ router.use('/complaints', complaintRouter)
 router.use('/users', userRouter)
 router.use('/dashboard', dashboardRouter)
 router.use('/hostel-resident-rules', hostelResidentRuleRouter)
+router.use('/devices', deviceRouter)

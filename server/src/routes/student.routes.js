@@ -55,14 +55,38 @@ studentRouter.get(
       ]
     }
 
+    const include = {
+      program: { select: { id: true, name: true, code: true } },
+      hostel: { select: { id: true, name: true } },
+      user: { select: { passwordResetRequestedAt: true } },
+    }
+
+    // Pagination is opt-in (the web client still fetches the full list). When
+    // ?page is present, return one page plus a `pagination` block like the
+    // complaints endpoint.
+    if (req.query.page !== undefined) {
+      const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
+      const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 20))
+      const [students, total] = await prisma.$transaction([
+        prisma.student.findMany({
+          where,
+          orderBy: { firstName: 'asc' },
+          include,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.student.count({ where }),
+      ])
+      return res.json({
+        students,
+        pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+      })
+    }
+
     const students = await prisma.student.findMany({
       where,
       orderBy: { firstName: 'asc' },
-      include: {
-        program: { select: { id: true, name: true, code: true } },
-        hostel: { select: { id: true, name: true } },
-        user: { select: { passwordResetRequestedAt: true } },
-      },
+      include,
     })
     res.json({ students })
   }),
