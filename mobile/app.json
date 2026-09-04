@@ -16,7 +16,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1e3a8a"
-      }
+      },
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "versionCode": 3
     },
     "web": {
       "bundler": "metro",
@@ -47,7 +51,12 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
-      "apiUrl": "http://10.22.0.151:4000"
-    }
+      "apiUrl": "https://hostel-complaints.git.edu",
+      "router": {},
+      "eas": {
+        "projectId": "412d93ab-cd75-4a59-9c47-83df079958c6"
+      }
+    },
+    "owner": "itcell"
   }
 }

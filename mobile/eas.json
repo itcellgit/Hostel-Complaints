@@ -13,7 +13,7 @@
       "distribution": "internal",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://10.22.0.151:4000"
+        "EXPO_PUBLIC_API_URL": "https://hostel-complaints.git.edu"
       }
     },
     "production": {
