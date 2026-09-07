@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Text, View } from 'react-native'
+import { Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../src/auth/AuthContext'
 import { apiErrorMessage } from '../src/api/client'
@@ -34,7 +35,12 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
-      <View className="flex-1 justify-center px-6 gap-3">
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 24, gap: 12 }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={24}
+        showsVerticalScrollIndicator={false}
+      >
         <Text className="text-xl font-bold text-slate-900">
           {forced ? 'Set a new password' : 'Change password'}
         </Text>
@@ -49,7 +55,7 @@ export default function ChangePasswordScreen() {
         <Field label="Confirm new password" secureTextEntry value={confirm} onChangeText={setConfirm} />
         <Button title="Update password" onPress={submit} loading={busy} />
         {forced ? <Button title="Sign out" variant="ghost" onPress={logout} /> : null}
-      </View>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   )
 }
