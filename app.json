@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "8203a22a-6f66-44fe-9e8a-e9538706f2f1"
+      }
+    },
+    "android": {
+      "package": "com.itcell.hostelcomplaints"
+    }
+  }
+}
