@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, Plus, KeyRound, PowerOff, Power, AlertCircle, Pencil } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ShieldCheck, Plus, KeyRound, PowerOff, Power, AlertCircle, Pencil, Search } from 'lucide-react'
 import { collegesApi, hostelsApi, usersApi } from '../../api/resources.js'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js'
 import { Card } from '../../components/ui/Card.jsx'
 import { Table } from '../../components/ui/Table.jsx'
+import { Pagination } from '../../components/ui/Pagination.jsx'
 import { Button } from '../../components/ui/Button.jsx'
 import { Modal } from '../../components/ui/Modal.jsx'
 import { FormField, Input, Select } from '../../components/ui/FormField.jsx'
@@ -12,10 +14,26 @@ import { CredentialsModal } from '../../components/ui/CredentialsModal.jsx'
 import { ROLE_LABEL } from '../../lib/roles.js'
 
 const emptyForm = { loginId: '', role: 'PRINCIPAL', principalCollegeId: '', hostelIds: [] }
+const PAGE_SIZE = 20
 
 export default function AdminUsersPage() {
   const queryClient = useQueryClient()
-  const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: () => usersApi.list() })
+
+  const [search, setSearch] = useState('')
+  const q = useDebouncedValue(search.trim(), 350)
+  const [page, setPage] = useState(1)
+  useEffect(() => {
+    setPage(1)
+  }, [q])
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ['users', { q, page, paged: true }],
+    queryFn: () => usersApi.listPaged({ q: q || undefined, page, pageSize: PAGE_SIZE }),
+    placeholderData: keepPreviousData,
+  })
+  const users = data?.users ?? []
+  const pagination = data?.pagination
+
   const { data: colleges } = useQuery({ queryKey: ['colleges'], queryFn: collegesApi.list })
   const { data: hostels } = useQuery({ queryKey: ['hostels'], queryFn: () => hostelsApi.list() })
 
@@ -100,12 +118,20 @@ export default function AdminUsersPage() {
         </Button>
       </div>
 
+      <div className="relative max-w-xs">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={2.25} />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by login email…" className="pl-9" />
+      </div>
+
       <Card className="animate-fade-in-up">
         {isLoading ? (
           <Spinner />
         ) : (
+          <>
+          <div className={isFetching ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
           <Table
             rowKey={(r) => r.id}
+            emptyMessage={q ? 'No users match your search.' : 'No users yet.'}
             columns={[
               { key: 'loginId', header: 'Login ID' },
               { key: 'role', header: 'Role', render: (r) => ROLE_LABEL[r.role] ?? r.role },
@@ -159,8 +185,13 @@ export default function AdminUsersPage() {
                 ),
               },
             ]}
-            rows={users ?? []}
+            rows={users}
           />
+          </div>
+          {pagination && (
+            <Pagination page={pagination.page} pageSize={pagination.pageSize} total={pagination.total} onPageChange={setPage} />
+          )}
+          </>
         )}
       </Card>
 
