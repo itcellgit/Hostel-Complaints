@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Image, KeyboardAvoidingView, Platform, Text, View } from 'react-native'
+import { Image, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useAuth } from '../src/auth/AuthContext'
 import { apiErrorMessage } from '../src/api/client'
 import { forgotPassword } from '../src/api/auth'
@@ -44,10 +45,11 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-dark" style={{ flex: 1, backgroundColor: '#1e3a8a' }}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 justify-center px-6"
-        style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}
+      <KeyboardAwareScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+        keyboardShouldPersistTaps="handled"
+        bottomOffset={24}
+        showsVerticalScrollIndicator={false}
       >
         <View className="mb-8 items-center" style={{ marginBottom: 32, alignItems: 'center' }}>
           <Image
@@ -91,7 +93,7 @@ export default function LoginScreen() {
           <Button title="Sign in" onPress={submit} loading={busy} />
           <Button title="Forgot password?" variant="ghost" onPress={requestReset} />
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
     </SafeAreaView>
   )
 }

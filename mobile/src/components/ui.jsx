@@ -2,27 +2,29 @@ import { forwardRef, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
-  ScrollView,
   Text,
   TextInput,
   View,
   RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { Ionicons } from '@expo/vector-icons'
 import { STATUS_COLOR, STATUS_LABEL, CATEGORY_COLOR, CATEGORY_LABEL } from '../lib/roles'
 
 export function Screen({ children, scroll = true, refreshing, onRefresh, className = '' }) {
   const body = scroll ? (
-    <ScrollView
-      contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
+    <KeyboardAwareScrollView
+      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40, flexGrow: 1 }}
       keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      bottomOffset={24}
       refreshControl={
         onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} /> : undefined
       }
     >
       {children}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   ) : (
     <View className="flex-1 p-4 gap-3">{children}</View>
   )
