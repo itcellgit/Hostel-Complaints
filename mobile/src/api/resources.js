@@ -67,6 +67,7 @@ export const studentsApi = {
   get: (id) => api.get(`/students/${id}`).then((r) => r.data),
   create: (data) => api.post('/students', data).then((r) => r.data),
   update: (id, data) => api.patch(`/students/${id}`, data).then((r) => r.data.student),
+  remove: (id) => api.delete(`/students/${id}`),
   setStatus: (id, isActive) => api.patch(`/students/${id}/status`, { isActive }),
   resetPassword: (id) => api.post(`/students/${id}/reset-password`).then((r) => r.data.tempPassword),
   bulkUpload: (file, hostelId) =>

@@ -16,23 +16,49 @@ const OFFICE_ROLES = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_R
 export const userRouter = Router()
 userRouter.use(requireAuth, requireRole('ADMIN'))
 
+const userListSelect = {
+  id: true,
+  loginId: true,
+  role: true,
+  isActive: true,
+  passwordResetRequestedAt: true,
+  principalCollege: { select: { id: true, name: true, code: true } },
+  deanInfraHostels: { include: { hostel: { select: { id: true, name: true } } } },
+}
+
 userRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const where = { role: { in: OFFICE_ROLES } }
     if (req.query.role) where.role = req.query.role
+    if (req.query.q) {
+      where.loginId = { contains: String(req.query.q), mode: 'insensitive' }
+    }
+
+    // Pagination is opt-in — returns a `pagination` block when ?page is sent.
+    if (req.query.page !== undefined) {
+      const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
+      const pageSize = Math.min(100, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 20))
+      const [users, total] = await prisma.$transaction([
+        prisma.user.findMany({
+          where,
+          orderBy: { loginId: 'asc' },
+          select: userListSelect,
+          skip: (page - 1) * pageSize,
+          take: pageSize,
+        }),
+        prisma.user.count({ where }),
+      ])
+      return res.json({
+        users,
+        pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+      })
+    }
+
     const users = await prisma.user.findMany({
       where,
       orderBy: { loginId: 'asc' },
-      select: {
-        id: true,
-        loginId: true,
-        role: true,
-        isActive: true,
-        passwordResetRequestedAt: true,
-        principalCollege: { select: { id: true, name: true, code: true } },
-        deanInfraHostels: { include: { hostel: { select: { id: true, name: true } } } },
-      },
+      select: userListSelect,
     })
     res.json({ users })
   }),

@@ -10,7 +10,7 @@ export default function AdminStudentDetailPage() {
         <ArrowLeft className="h-4 w-4" strokeWidth={2.25} />
         Back to students
       </Link>
-      <StudentDetailView studentId={id} canManage />
+      <StudentDetailView studentId={id} canManage canDelete />
     </div>
   )
 }

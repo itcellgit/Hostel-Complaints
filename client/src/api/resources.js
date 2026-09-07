@@ -41,11 +41,14 @@ export const staffApi = {
 
 export const studentsApi = {
   list: (params) => api.get('/students', { params }).then((r) => r.data.students),
+  // Server paginates only when `page` is passed; returns { students, pagination }.
+  listPaged: (params) => api.get('/students', { params }).then((r) => r.data),
   me: () => api.get('/students/me').then((r) => r.data),
   dashboard: () => api.get('/students/me/dashboard').then((r) => r.data),
   get: (id) => api.get(`/students/${id}`).then((r) => r.data),
   create: (data) => api.post('/students', data).then((r) => r.data),
   update: (id, data) => api.patch(`/students/${id}`, data).then((r) => r.data.student),
+  remove: (id) => api.delete(`/students/${id}`),
   setStatus: (id, isActive) => api.patch(`/students/${id}/status`, { isActive }),
   resetPassword: (id) => api.post(`/students/${id}/reset-password`).then((r) => r.data.tempPassword),
   bulkUpload: (file, hostelId) => {
@@ -92,6 +95,8 @@ export const complaintsApi = {
 
 export const usersApi = {
   list: (role) => api.get('/users', { params: role ? { role } : undefined }).then((r) => r.data.users),
+  // Server paginates only when `page` is passed; returns { users, pagination }.
+  listPaged: (params) => api.get('/users', { params }).then((r) => r.data),
   create: (data) => api.post('/users', data).then((r) => r.data),
   update: (id, data) => api.patch(`/users/${id}`, data).then((r) => r.data.user),
   resetPassword: (id) => api.post(`/users/${id}/reset-password`).then((r) => r.data.tempPassword),

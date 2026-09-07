@@ -5,7 +5,7 @@ import { prisma } from '../config/prisma.js'
 import { asyncHandler } from '../middleware/asyncHandler.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { studentWhereForUser } from '../utils/scope.js'
-import { badRequest, forbidden, notFound } from '../utils/httpError.js'
+import { badRequest, conflict, forbidden, notFound } from '../utils/httpError.js'
 import { generateTempPassword, hashPassword } from '../utils/password.js'
 import { feeSummaryForStudent } from '../services/feeSummary.js'
 import { buildStudentImportTemplate, importStudentRows, parseStudentWorkbook, STUDENT_IMPORT_COLUMNS } from '../services/studentImport.js'
@@ -285,6 +285,42 @@ studentRouter.patch(
     const data = updateStudentSchema.parse(req.body)
     const student = await prisma.student.update({ where: { id: existing.id }, data })
     res.json({ student })
+  }),
+)
+
+// Hard-delete a student and their login. Refused once they have any
+// complaint history (would orphan those complaints) or other activity —
+// "Mark as left hostel" is the reversible alternative that keeps the record.
+studentRouter.delete(
+  '/:id',
+  requireRole('ADMIN'),
+  asyncHandler(async (req, res, next) => {
+    const student = await prisma.student.findFirst({
+      where: { id: req.params.id, ...studentWhereForUser(req.user) },
+      include: { _count: { select: { complaints: true } } },
+    })
+    if (!student) return next(notFound('Student not found'))
+    if (student._count.complaints > 0) {
+      return next(
+        conflict('This student has complaint history and can’t be deleted. Use “Mark as left hostel” instead.'),
+      )
+    }
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.student.delete({ where: { id: student.id } })
+        await tx.user.delete({ where: { id: student.userId } })
+      })
+    } catch (err) {
+      if (err?.code === 'P2003') {
+        return next(
+          conflict('This student has activity history and can’t be deleted. Use “Mark as left hostel” instead.'),
+        )
+      }
+      throw err
+    }
+
+    res.status(204).end()
   }),
 )
 

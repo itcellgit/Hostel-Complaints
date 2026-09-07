@@ -15,8 +15,8 @@ export function FormField({ label, error, children, hint }) {
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm outline-none transition-all duration-150 placeholder:text-slate-400 hover:border-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/25 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:hover:border-slate-600 dark:focus:border-indigo-400'
 
-export function Input(props) {
-  return <input className={inputClass} {...props} />
+export function Input({ className = '', ...props }) {
+  return <input className={`${inputClass} ${className}`} {...props} />
 }
 
 export function PasswordInput({ className = '', ...props }) {

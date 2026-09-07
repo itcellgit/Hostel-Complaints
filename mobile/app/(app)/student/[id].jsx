@@ -24,6 +24,7 @@ export default function StudentDetail() {
 
   const setStatus = useCrud({ mutationFn: (isActive) => studentsApi.setStatus(id, isActive), invalidate: inv })
   const addFee = useCrud({ mutationFn: (d) => studentsApi.addFeePayment(id, d), invalidate: inv })
+  const remove = useCrud({ mutationFn: () => studentsApi.remove(id), invalidate: [['students']] })
 
   if (q.isLoading) return <Loader />
   if (q.isError)
@@ -79,6 +80,27 @@ export default function StudentDetail() {
             />
             <Button title="Record payment" className="flex-1" onPress={() => setFeeSheet(true)} />
           </View>
+          {user?.role === 'ADMIN' ? (
+            <Button
+              title="Delete student"
+              variant="danger"
+              loading={remove.isPending}
+              onPress={() =>
+                Alert.alert(
+                  'Delete this student?',
+                  `Permanently removes ${student.firstName} ${student.lastName} (${student.usn}) and their login. Won't work if they have complaint history — use "Mark as left" instead.`,
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => remove.submit(undefined, { onDone: () => router.replace('/students') }),
+                    },
+                  ],
+                )
+              }
+            />
+          ) : null}
         </View>
       ) : null}
 
