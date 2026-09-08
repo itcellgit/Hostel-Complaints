@@ -3,7 +3,6 @@ import { useEffect } from 'react'
 import { Stack, useRouter, useSegments } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import { KeyboardProvider } from 'react-native-keyboard-controller'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from '../src/auth/AuthContext'
 import { Loader } from '../src/components/ui'
@@ -33,12 +32,18 @@ function RootNavigator() {
     const onChangePw = segments[0] === 'change-password'
 
     if (!user && inAuthArea) {
+      // signed out but on a protected screen
       router.replace('/login')
     } else if (user && user.mustChangePassword && !onChangePw) {
+      // forced to set a new password before doing anything else
       router.replace('/change-password')
-    } else if (user && !user.mustChangePassword && (segments[0] === 'login' || onChangePw)) {
+    } else if (user && !user.mustChangePassword && segments[0] === 'login') {
+      // already signed in, sitting on the login screen
       router.replace('/dashboard')
     }
+    // NOTE: do NOT auto-redirect away from /change-password here — a signed-in
+    // user opens it voluntarily from the More menu, and the screen navigates
+    // itself after a successful change or Cancel.
   }, [user, bootstrapping, segments, router])
 
   if (bootstrapping) return <Loader label="Starting up…" />
@@ -57,16 +62,14 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <KeyboardProvider>
-        <SafeAreaProvider>
-          <QueryClientProvider client={queryClient}>
-            <AuthProvider>
-              <StatusBar style="dark" />
-              <RootNavigator />
-            </AuthProvider>
-          </QueryClientProvider>
-        </SafeAreaProvider>
-      </KeyboardProvider>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </AuthProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   )
 }

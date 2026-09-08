@@ -1,12 +1,11 @@
 import { useState } from 'react'
 import { Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { forgotPassword } from '../src/api/auth'
 import { apiErrorMessage } from '../src/api/client'
-import { Button, Field, ErrorNote } from '../src/components/ui'
+import { Button, Field, ErrorNote, FormScroll } from '../src/components/ui'
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
@@ -31,10 +30,8 @@ export default function ForgotPasswordScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
-      <KeyboardAwareScrollView
+      <FormScroll
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 24, gap: 14 }}
-        keyboardShouldPersistTaps="handled"
-        bottomOffset={24}
       >
         <Text className="text-xl font-bold text-slate-900">Forgot your password?</Text>
 
@@ -73,7 +70,7 @@ export default function ForgotPasswordScreen() {
             <Button title="Back to sign in" variant="ghost" onPress={() => router.replace('/login')} />
           </>
         )}
-      </KeyboardAwareScrollView>
+      </FormScroll>
     </SafeAreaView>
   )
 }

@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Image, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../src/auth/AuthContext'
 import { apiErrorMessage } from '../src/api/client'
-import { Button, Field, ErrorNote } from '../src/components/ui'
+import { Button, Field, ErrorNote, FormScroll } from '../src/components/ui'
 import { LOGO } from '../src/components/Header'
 
 export default function LoginScreen() {
@@ -30,11 +29,8 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-brand-dark" style={{ flex: 1, backgroundColor: '#1e3a8a' }}>
-      <KeyboardAwareScrollView
+      <FormScroll
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
-        keyboardShouldPersistTaps="handled"
-        bottomOffset={24}
-        showsVerticalScrollIndicator={false}
       >
         <View className="mb-8 items-center" style={{ marginBottom: 32, alignItems: 'center' }}>
           <Image
@@ -73,7 +69,7 @@ export default function LoginScreen() {
           <Button title="Sign in" onPress={submit} loading={busy} />
           <Button title="Forgot password?" variant="ghost" onPress={() => router.push('/forgot-password')} />
         </View>
-      </KeyboardAwareScrollView>
+      </FormScroll>
     </SafeAreaView>
   )
 }
