@@ -2,23 +2,22 @@ import { useState } from 'react'
 import { Image, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
+import { useRouter } from 'expo-router'
 import { useAuth } from '../src/auth/AuthContext'
 import { apiErrorMessage } from '../src/api/client'
-import { forgotPassword } from '../src/api/auth'
 import { Button, Field, ErrorNote } from '../src/components/ui'
 import { LOGO } from '../src/components/Header'
 
 export default function LoginScreen() {
   const { login } = useAuth()
+  const router = useRouter()
   const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
 
   async function submit() {
     setError('')
-    setNotice('')
     setBusy(true)
     try {
       await login(loginId.trim(), password)
@@ -26,20 +25,6 @@ export default function LoginScreen() {
       setError(apiErrorMessage(err, 'Invalid credentials'))
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function requestReset() {
-    if (!loginId.trim()) {
-      setError('Enter your login ID / USN first')
-      return
-    }
-    setError('')
-    try {
-      await forgotPassword(loginId.trim())
-      setNotice('If that account exists, an Admin has been notified to reset it.')
-    } catch (err) {
-      setError(apiErrorMessage(err))
     }
   }
 
@@ -67,11 +52,6 @@ export default function LoginScreen() {
 
         <View className="bg-white rounded-2xl p-5 gap-3">
           <ErrorNote message={error} />
-          {notice ? (
-            <View className="bg-green-50 border border-green-200 rounded-xl p-3">
-              <Text className="text-green-700 text-sm">{notice}</Text>
-            </View>
-          ) : null}
 
           <Field
             label="Login ID / USN"
@@ -91,7 +71,7 @@ export default function LoginScreen() {
             onSubmitEditing={submit}
           />
           <Button title="Sign in" onPress={submit} loading={busy} />
-          <Button title="Forgot password?" variant="ghost" onPress={requestReset} />
+          <Button title="Forgot password?" variant="ghost" onPress={() => router.push('/forgot-password')} />
         </View>
       </KeyboardAwareScrollView>
     </SafeAreaView>

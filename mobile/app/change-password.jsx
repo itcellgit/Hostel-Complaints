@@ -54,7 +54,11 @@ export default function ChangePasswordScreen() {
         <Field label="New password" secureTextEntry value={next} onChangeText={setNext} hint="At least 8 characters" />
         <Field label="Confirm new password" secureTextEntry value={confirm} onChangeText={setConfirm} />
         <Button title="Update password" onPress={submit} loading={busy} />
-        {forced ? <Button title="Sign out" variant="ghost" onPress={logout} /> : null}
+        {forced ? (
+          <Button title="Sign out" variant="ghost" onPress={logout} />
+        ) : (
+          <Button title="Cancel" variant="ghost" onPress={() => router.replace('/dashboard')} />
+        )}
       </KeyboardAwareScrollView>
     </SafeAreaView>
   )
