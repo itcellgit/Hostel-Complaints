@@ -45,13 +45,18 @@ async function runRefresh() {
   return data
 }
 
+// Routes where a 401 is terminal — refreshing and retrying is pointless
+// (bad credentials) or would loop (dead refresh token). Every other route,
+// including /auth/change-password and /auth/me, DOES get a refresh + retry.
+const NO_RETRY = ['/auth/login', '/auth/refresh', '/auth/forgot-password']
+
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const { config, response } = error
-    const isAuthRoute = config?.url?.includes('/auth/')
+    const noRetry = NO_RETRY.some((path) => config?.url?.includes(path))
 
-    if (response?.status === 401 && !config?._retried && !isAuthRoute) {
+    if (response?.status === 401 && !config?._retried && !noRetry) {
       config._retried = true
       try {
         refreshPromise ??= runRefresh().finally(() => {

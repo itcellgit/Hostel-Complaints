@@ -1,30 +1,52 @@
 import { forwardRef, useState } from 'react'
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
+  ScrollView,
   Text,
   TextInput,
   View,
   RefreshControl,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { Ionicons } from '@expo/vector-icons'
 import { STATUS_COLOR, STATUS_LABEL, CATEGORY_COLOR, CATEGORY_LABEL } from '../lib/roles'
 
+// Scroll container that keeps inputs above the keyboard. iOS uses `padding`;
+// Android relies on adjustResize (Expo default) so the scroll area shrinks and
+// stays scrollable — plus generous bottom padding so the last field/button
+// clears the keyboard.
+export function FormScroll({ children, contentContainerStyle, ...props }) {
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[{ paddingBottom: 120 }, contentContainerStyle]}
+        {...props}
+      >
+        {children}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  )
+}
+
 export function Screen({ children, scroll = true, refreshing, onRefresh, className = '' }) {
   const body = scroll ? (
-    <KeyboardAwareScrollView
-      contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40, flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="interactive"
-      bottomOffset={24}
+    <FormScroll
+      contentContainerStyle={{ padding: 16, gap: 12, flexGrow: 1 }}
       refreshControl={
         onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} /> : undefined
       }
     >
       {children}
-    </KeyboardAwareScrollView>
+    </FormScroll>
   ) : (
     <View className="flex-1 p-4 gap-3">{children}</View>
   )

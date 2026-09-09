@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller'
 import { useRouter } from 'expo-router'
 import { useAuth } from '../src/auth/AuthContext'
 import { apiErrorMessage } from '../src/api/client'
-import { Button, Field, ErrorNote } from '../src/components/ui'
+import { Button, Field, ErrorNote, FormScroll } from '../src/components/ui'
 
 export default function ChangePasswordScreen() {
   const { changePassword, logout, user } = useAuth()
@@ -35,11 +34,8 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-slate-50">
-      <KeyboardAwareScrollView
+      <FormScroll
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 24, gap: 12 }}
-        keyboardShouldPersistTaps="handled"
-        bottomOffset={24}
-        showsVerticalScrollIndicator={false}
       >
         <Text className="text-xl font-bold text-slate-900">
           {forced ? 'Set a new password' : 'Change password'}
@@ -54,8 +50,12 @@ export default function ChangePasswordScreen() {
         <Field label="New password" secureTextEntry value={next} onChangeText={setNext} hint="At least 8 characters" />
         <Field label="Confirm new password" secureTextEntry value={confirm} onChangeText={setConfirm} />
         <Button title="Update password" onPress={submit} loading={busy} />
-        {forced ? <Button title="Sign out" variant="ghost" onPress={logout} /> : null}
-      </KeyboardAwareScrollView>
+        {forced ? (
+          <Button title="Sign out" variant="ghost" onPress={logout} />
+        ) : (
+          <Button title="Cancel" variant="ghost" onPress={() => router.replace('/dashboard')} />
+        )}
+      </FormScroll>
     </SafeAreaView>
   )
 }
