@@ -114,3 +114,8 @@ export const hostelResidentRulesApi = {
   update: (id, data) => api.patch(`/hostel-resident-rules/${id}`, data).then((r) => r.data.rule),
   remove: (id) => api.delete(`/hostel-resident-rules/${id}`),
 }
+
+export const auditLogApi = {
+  list: (params) => api.get('/audit-logs', { params }).then((r) => r.data),
+  actions: () => api.get('/audit-logs/actions').then((r) => r.data.actions),
+}

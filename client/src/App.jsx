@@ -21,6 +21,7 @@ import AdminStaffDetailPage from './pages/admin/AdminStaffDetailPage.jsx'
 import AdminStudentsPage from './pages/admin/AdminStudentsPage.jsx'
 import AdminStudentDetailPage from './pages/admin/AdminStudentDetailPage.jsx'
 import AdminUsersPage from './pages/admin/AdminUsersPage.jsx'
+import AdminAuditLogPage from './pages/admin/AdminAuditLogPage.jsx'
 
 import PrincipalStudentsPage from './pages/principal/PrincipalStudentsPage.jsx'
 import PrincipalStudentDetailPage from './pages/principal/PrincipalStudentDetailPage.jsx'
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="complaints" element={<ComplaintListPage basePath="/admin/complaints" />} />
           <Route path="complaints/:id" element={<ComplaintDetailPage basePath="/admin/complaints" />} />
           <Route path="users" element={<AdminUsersPage />} />
+          <Route path="audit-log" element={<AdminAuditLogPage />} />
         </Route>
       </Route>
 

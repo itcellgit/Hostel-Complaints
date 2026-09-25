@@ -9,7 +9,11 @@
     "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "org.kls.hostelcomplaints"
+      "bundleIdentifier": "org.kls.hostelcomplaints",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "org.kls.hostelcomplaints",
@@ -47,7 +51,7 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
-      "apiUrl": "http://10.22.0.151:4000"
+      "apiUrl": "https://hostel-complaints.git.edu"
     }
   }
 }

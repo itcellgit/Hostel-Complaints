@@ -44,6 +44,7 @@ export const MORE_LINKS = {
     { href: '/hostels', label: 'Hostels', icon: 'business-outline' },
     { href: '/staff', label: 'Rectors & Faculty', icon: 'briefcase-outline' },
     { href: '/users', label: 'Users', icon: 'shield-checkmark-outline' },
+    { href: '/audit-log', label: 'Activity Log', icon: 'time-outline' },
   ],
   RECTOR: [{ href: '/rules', label: 'Hostel Rules', icon: 'list-outline' }],
   STUDENT: [
