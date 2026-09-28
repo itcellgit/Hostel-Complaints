@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { KeyRound, LogOut, Menu } from 'lucide-react'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { KeyRound, LogOut, Menu, Undo2 } from 'lucide-react'
 import { useAuth } from '../../context/authContext.js'
 import { NAV_BY_ROLE } from '../../lib/nav.js'
-import { ROLE_LABEL } from '../../lib/roles.js'
+import { ROLE_LABEL, homeFor } from '../../lib/roles.js'
 import klsLogo from '../../assets/kls-logo.jpg'
 
 function SidebarContent({ navItems }) {
@@ -45,10 +45,22 @@ function SidebarContent({ navItems }) {
 }
 
 export function AppLayout() {
-  const { user, logout } = useAuth()
+  const { user, logout, stopImpersonation } = useAuth()
+  const navigate = useNavigate()
   const navItems = NAV_BY_ROLE[user.role] ?? []
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [stopping, setStopping] = useState(false)
   const location = useLocation()
+
+  async function handleStopImpersonating() {
+    setStopping(true)
+    try {
+      const admin = await stopImpersonation()
+      navigate(homeFor(admin.role))
+    } finally {
+      setStopping(false)
+    }
+  }
 
   // Close the mobile drawer on every navigation (link click, back/forward,
   // etc.). Adjusted during render rather than via an effect, per React's
@@ -90,6 +102,21 @@ export function AppLayout() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        {user.impersonatedBy && (
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-amber-500 px-4 py-2 text-sm font-medium text-white md:px-6">
+            <span>
+              Viewing as {user.displayName} ({ROLE_LABEL[user.role] ?? user.role}) — impersonated by {user.impersonatedByLoginId}
+            </span>
+            <button
+              onClick={handleStopImpersonating}
+              disabled={stopping}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/20 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-white/30 disabled:opacity-60"
+            >
+              <Undo2 className="h-4 w-4" strokeWidth={2.25} />
+              {stopping ? 'Stopping…' : 'Stop impersonating'}
+            </button>
+          </div>
+        )}
         <header className="flex items-center justify-between border-b border-slate-200 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-md dark:border-slate-800 dark:bg-slate-900/80 md:px-6">
           <div className="flex items-center gap-3">
             <button

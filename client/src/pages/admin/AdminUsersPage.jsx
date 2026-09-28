@@ -11,6 +11,7 @@ import { Modal } from '../../components/ui/Modal.jsx'
 import { FormField, Input, Select } from '../../components/ui/FormField.jsx'
 import { Spinner, ErrorBanner } from '../../components/ui/Spinner.jsx'
 import { CredentialsModal } from '../../components/ui/CredentialsModal.jsx'
+import { ImpersonateButton } from '../../components/admin/ImpersonateButton.jsx'
 import { ROLE_LABEL } from '../../lib/roles.js'
 
 const emptyForm = { loginId: '', role: 'PRINCIPAL', principalCollegeId: '', hostelIds: [] }
@@ -164,7 +165,12 @@ export default function AdminUsersPage() {
                 key: 'actions',
                 header: '',
                 render: (r) => (
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <ImpersonateButton
+                      userId={r.id}
+                      disabled={r.role === 'ADMIN' || !r.isActive}
+                      title={r.role === 'ADMIN' ? 'Cannot impersonate another Admin' : !r.isActive ? 'Account is disabled' : undefined}
+                    />
                     <Button variant="ghost" size="sm" onClick={() => openEdit(r)}>
                       <Pencil className="h-3.5 w-3.5" strokeWidth={2.25} />
                       Edit

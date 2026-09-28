@@ -7,7 +7,7 @@ import { Card } from '../../components/ui/Card.jsx'
 import { Table } from '../../components/ui/Table.jsx'
 import { Pagination } from '../../components/ui/Pagination.jsx'
 import { Input, Select } from '../../components/ui/FormField.jsx'
-import { Spinner } from '../../components/ui/Spinner.jsx'
+import { Spinner, ErrorBanner } from '../../components/ui/Spinner.jsx'
 import { ROLE_LABEL } from '../../lib/roles.js'
 import { formatDateTime } from '../../lib/format.js'
 
@@ -37,7 +37,7 @@ export default function AdminAuditLogPage() {
 
   const { data: actions } = useQuery({ queryKey: ['audit-log-actions'], queryFn: auditLogApi.actions })
 
-  const { data, isLoading, isFetching } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
     queryKey: ['audit-logs', { q, action, role, page }],
     queryFn: () =>
       auditLogApi.list({
@@ -88,6 +88,17 @@ export default function AdminAuditLogPage() {
       <Card className="animate-fade-in-up">
         {isLoading ? (
           <Spinner />
+        ) : error ? (
+          <div className="space-y-3">
+            <ErrorBanner message={error.response?.data?.error ?? 'Could not load the activity log.'} />
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
+            >
+              Retry
+            </button>
+          </div>
         ) : (
           <>
             <div className={isFetching ? 'opacity-60 transition-opacity' : 'transition-opacity'}>

@@ -29,6 +29,18 @@ const ROUTES = [
   },
   {
     method: 'POST',
+    re: /^\/auth\/impersonate\/[^/]+$/,
+    action: 'auth.impersonate_start',
+    label: 'Started impersonating a user',
+  },
+  {
+    method: 'POST',
+    re: /^\/auth\/stop-impersonation$/,
+    action: 'auth.impersonate_stop',
+    label: 'Stopped impersonating',
+  },
+  {
+    method: 'POST',
     re: /^\/auth\/forgot-password$/,
     action: 'auth.forgot_password',
     label: 'Requested a password reset',

@@ -6,3 +6,5 @@ export const fetchMe = () => api.get('/auth/me').then((r) => r.data)
 export const changePassword = (currentPassword, newPassword) =>
   api.post('/auth/change-password', { currentPassword, newPassword }).then((r) => r.data)
 export const forgotPassword = (loginId) => api.post('/auth/forgot-password', { loginId }).then((r) => r.data)
+export const impersonate = (userId) => api.post(`/auth/impersonate/${userId}`).then((r) => r.data)
+export const stopImpersonation = () => api.post('/auth/stop-impersonation').then((r) => r.data)

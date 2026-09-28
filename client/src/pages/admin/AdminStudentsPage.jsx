@@ -13,6 +13,7 @@ import { ConfirmModal } from '../../components/ui/ConfirmModal.jsx'
 import { Input, Select } from '../../components/ui/FormField.jsx'
 import { Spinner } from '../../components/ui/Spinner.jsx'
 import { CredentialsModal } from '../../components/ui/CredentialsModal.jsx'
+import { ImpersonateButton } from '../../components/admin/ImpersonateButton.jsx'
 import { BulkUploadModal } from '../../components/students/BulkUploadModal.jsx'
 import { StudentCreateForm } from '../../components/students/StudentCreateForm.jsx'
 import { StudentEditForm } from '../../components/students/StudentEditForm.jsx'
@@ -145,6 +146,11 @@ export default function AdminStudentsPage() {
                     header: 'Action',
                     render: (r) => (
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <ImpersonateButton
+                          userId={r.user?.id}
+                          disabled={!r.user?.id || !r.isActive}
+                          title={!r.isActive ? 'Student is marked as left' : undefined}
+                        />
                         <button
                           type="button"
                           onClick={() => setEditing(r)}
