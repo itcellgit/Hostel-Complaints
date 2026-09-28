@@ -58,7 +58,7 @@ studentRouter.get(
     const include = {
       program: { select: { id: true, name: true, code: true } },
       hostel: { select: { id: true, name: true } },
-      user: { select: { passwordResetRequestedAt: true } },
+      user: { select: { id: true, passwordResetRequestedAt: true } },
     }
 
     // Pagination is opt-in (the web client still fetches the full list). When

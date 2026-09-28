@@ -10,6 +10,7 @@ import { Modal } from '../../components/ui/Modal.jsx'
 import { FormField, Input, Select } from '../../components/ui/FormField.jsx'
 import { Spinner, ErrorBanner } from '../../components/ui/Spinner.jsx'
 import { CredentialsModal } from '../../components/ui/CredentialsModal.jsx'
+import { ImpersonateButton } from '../../components/admin/ImpersonateButton.jsx'
 
 const emptyForm = { firstName: '', lastName: '', phone: '', loginId: '', roleType: 'RECTOR', hostelId: '' }
 
@@ -64,6 +65,19 @@ export default function AdminStaffPage() {
                 render: (r) => r.assignments[0]?.hostel.name ?? '— unassigned —',
               },
               { key: 'status', header: 'Login', render: (r) => (r.user.isActive ? 'Active' : 'Disabled') },
+              {
+                key: 'actions',
+                header: '',
+                render: (r) => (
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <ImpersonateButton
+                      userId={r.user?.id}
+                      disabled={!r.user?.id || !r.user.isActive}
+                      title={!r.user.isActive ? 'Login is disabled' : undefined}
+                    />
+                  </div>
+                ),
+              },
             ]}
             rows={staff ?? []}
           />

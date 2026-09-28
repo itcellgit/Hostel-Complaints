@@ -47,7 +47,7 @@ staffRouter.get(
     const staff = await prisma.staff.findMany({
       orderBy: { firstName: 'asc' },
       include: {
-        user: { select: { loginId: true, isActive: true, role: true, passwordResetRequestedAt: true } },
+        user: { select: { id: true, loginId: true, isActive: true, role: true, passwordResetRequestedAt: true } },
         assignments: {
           where: { endDate: null },
           include: { hostel: { select: { id: true, name: true, type: true } } },

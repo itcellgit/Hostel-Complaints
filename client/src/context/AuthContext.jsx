@@ -40,6 +40,20 @@ export function AuthProvider({ children }) {
     setUser(null)
   }, [])
 
+  const impersonate = useCallback(async (userId) => {
+    const { user } = await authApi.impersonate(userId)
+    const normalized = normalizeUser(user)
+    setUser(normalized)
+    return normalized
+  }, [])
+
+  const stopImpersonation = useCallback(async () => {
+    const { user } = await authApi.stopImpersonation()
+    const normalized = normalizeUser(user)
+    setUser(normalized)
+    return normalized
+  }, [])
+
   const refreshMe = useCallback(async () => {
     const { user } = await authApi.fetchMe()
     const normalized = normalizeUser(user)
@@ -48,8 +62,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, loading, login, logout, refreshMe }),
-    [user, loading, login, logout, refreshMe],
+    () => ({ user, loading, login, logout, refreshMe, impersonate, stopImpersonation }),
+    [user, loading, login, logout, refreshMe, impersonate, stopImpersonation],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

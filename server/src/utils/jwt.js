@@ -8,10 +8,13 @@ export function signAccessToken(claims) {
   return jwt.sign(claims, env.jwtAccessSecret, { expiresIn: env.jwtAccessExpiresIn })
 }
 
-export function signRefreshToken(userId) {
-  return jwt.sign({ sub: userId, type: 'refresh' }, env.jwtRefreshSecret, {
-    expiresIn: env.jwtRefreshExpiresIn,
-  })
+// `impersonation`, when present, is carried in the refresh token too (not
+// just the access token) so that a token refresh mid-impersonation doesn't
+// silently drop back to the target's own identity — see issueSession in
+// auth.routes.js.
+export function signRefreshToken(userId, impersonation) {
+  const payload = { sub: userId, type: 'refresh', ...impersonation }
+  return jwt.sign(payload, env.jwtRefreshSecret, { expiresIn: env.jwtRefreshExpiresIn })
 }
 
 export function verifyAccessToken(token) {
