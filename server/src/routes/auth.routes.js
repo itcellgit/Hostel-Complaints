@@ -68,6 +68,12 @@ authRouter.post(
     const { claims, tokens } = await issueSession(req, res, user)
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
 
+    // Nothing else reads req.user on this request — this is purely so the
+    // audit log middleware (which fires on res "finish", after req.user
+    // would otherwise still be unset for an unauthenticated route) knows
+    // who just signed in.
+    req.user = { id: user.id, loginId: user.loginId, role: user.role }
+
     res.json({ user: { ...claims, displayName: await displayNameFor(user) }, tokens })
   }),
 )

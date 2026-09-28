@@ -30,6 +30,7 @@ export default function AppLayout() {
       <Stack.Screen name="staff" options={{ title: 'Rectors & Faculty' }} />
       <Stack.Screen name="staff/[id]" options={{ title: 'Staff member' }} />
       <Stack.Screen name="users" options={{ title: 'Users' }} />
+      <Stack.Screen name="audit-log" options={{ title: 'Activity Log' }} />
       <Stack.Screen name="rules" options={{ title: 'Hostel Rules' }} />
     </Stack>
   )

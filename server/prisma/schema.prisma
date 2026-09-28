@@ -177,6 +177,32 @@ model User {
   closedComplaints    Complaint[]         @relation("ComplaintClosedBy")
   complaintActivities ComplaintActivity[]
   devices             Device[]
+  auditLogs           AuditLog[]
+}
+
+// One row per state-changing API request (POST/PATCH/PUT/DELETE that
+// succeeded), written by a global Express middleware — see
+// server/src/middleware/auditLog.js. loginId/role are snapshotted at write
+// time so the log still reads sensibly after an account is renamed or
+// deleted (userId then goes null but the log line survives).
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  loginId    String?
+  role       UserRole?
+  action     String
+  summary    String?
+  method     String
+  path       String
+  statusCode Int
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([action])
 }
 
 // One row per mobile install the user has signed in on. `token` is the Expo

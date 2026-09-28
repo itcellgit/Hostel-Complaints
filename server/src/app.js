@@ -8,6 +8,7 @@ import morgan from 'morgan'
 import { env } from './config/env.js'
 import { router } from './routes/index.js'
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js'
+import { auditLogMiddleware } from './middleware/auditLog.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -25,7 +26,7 @@ if (env.nodeEnv !== 'test') {
 
 app.use('/uploads', express.static(uploadsDir))
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }))
-app.use('/api', router)
+app.use('/api', auditLogMiddleware, router)
 
 app.use(notFoundHandler)
 app.use(errorHandler)

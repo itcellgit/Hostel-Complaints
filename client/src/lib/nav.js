@@ -11,6 +11,7 @@ import {
   Wallet,
   BookOpen,
   FilePlus2,
+  History,
 } from 'lucide-react'
 
 export const NAV_BY_ROLE = {
@@ -22,6 +23,7 @@ export const NAV_BY_ROLE = {
     { to: '/admin/students', label: 'Students', icon: Users },
     { to: '/admin/complaints', label: 'Complaints', icon: MessageSquareWarning },
     { to: '/admin/users', label: 'Users', icon: ShieldCheck },
+    { to: '/admin/audit-log', label: 'Activity Log', icon: History },
   ],
   PRINCIPAL: [
     { to: '/principal', label: 'Dashboard', end: true, icon: LayoutDashboard },
