@@ -5,16 +5,20 @@ import { asyncHandler } from '../middleware/asyncHandler.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { badRequest, notFound } from '../utils/httpError.js'
 import { generateTempPassword, hashPassword } from '../utils/password.js'
-import { CELL_ROLES } from '../utils/cellRoles.js'
+import { CELL_ROLES, DEPARTMENTS } from '../utils/cellRoles.js'
 
 // Admin-managed logins for the "office" roles. Student accounts are
 // created alongside Student records (student.routes.js) and Rector/Faculty
 // accounts alongside Staff records (staff.routes.js) since those roles
 // always come with a domain record attached.
-const OFFICE_ROLES = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES]
+const OFFICE_ROLES = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES, 'MAINTAINER']
 
 export const userRouter = Router()
 userRouter.use(requireAuth, requireRole('ADMIN'))
+
+// The form sends '' for untouched optional fields.
+const optionalDepartment = z.enum(DEPARTMENTS).or(z.literal('')).optional().transform((v) => v || undefined)
+const optionalPhone = z.string().trim().max(20).optional().transform((v) => v || undefined)
 
 const userListSelect = {
   id: true,
@@ -22,6 +26,8 @@ const userListSelect = {
   role: true,
   isActive: true,
   passwordResetRequestedAt: true,
+  department: true,
+  phoneNumber: true,
   principalCollege: { select: { id: true, name: true, code: true } },
   deanInfraHostels: { include: { hostel: { select: { id: true, name: true } } } },
 }
@@ -67,6 +73,8 @@ userRouter.get(
 const createUserSchema = z.object({
   loginId: z.string().email(),
   role: z.enum(OFFICE_ROLES),
+  department: optionalDepartment,
+  phoneNumber: optionalPhone,
   principalCollegeId: z.string().optional(),
   hostelIds: z.array(z.string()).optional(),
 })
@@ -75,6 +83,9 @@ userRouter.post(
   '/',
   asyncHandler(async (req, res, next) => {
     const data = createUserSchema.parse(req.body)
+    if (data.role === 'MAINTAINER' && !data.department) {
+      return next(badRequest('A department is required for a Maintainer account'))
+    }
     if (data.role === 'PRINCIPAL' && !data.principalCollegeId) {
       return next(badRequest('principalCollegeId is required for a Principal account'))
     }
@@ -91,6 +102,8 @@ userRouter.post(
           loginId: data.loginId,
           passwordHash,
           role: data.role,
+          department: data.department,
+          phoneNumber: data.phoneNumber,
           principalCollegeId: data.role === 'PRINCIPAL' ? data.principalCollegeId : undefined,
         },
       })
@@ -110,6 +123,8 @@ userRouter.post(
 const updateUserSchema = z.object({
   loginId: z.string().email().optional(),
   isActive: z.boolean().optional(),
+  department: optionalDepartment,
+  phoneNumber: optionalPhone,
   principalCollegeId: z.string().optional(),
   hostelIds: z.array(z.string()).optional(),
 })
@@ -127,7 +142,10 @@ userRouter.patch(
         data: {
           loginId: data.loginId,
           isActive: data.isActive,
-          principalCollegeId: data.principalCollegeId,
+          department: data.department,
+          phoneNumber: data.phoneNumber,
+          // The edit form sends '' for non-principals, which would violate the college FK.
+          principalCollegeId: existing.role === 'PRINCIPAL' && data.principalCollegeId ? data.principalCollegeId : undefined,
         },
       })
       if (data.hostelIds && existing.role === 'DEAN_INFRA') {
@@ -146,6 +164,8 @@ userRouter.patch(
         role: true,
         isActive: true,
         passwordResetRequestedAt: true,
+        department: true,
+        phoneNumber: true,
         principalCollege: { select: { id: true, name: true, code: true } },
         deanInfraHostels: { include: { hostel: { select: { id: true, name: true } } } },
       },

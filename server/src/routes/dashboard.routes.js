@@ -9,7 +9,7 @@ export const dashboardRouter = Router()
 dashboardRouter.use(requireAuth)
 
 const MONTHLY_TREND_MONTHS = 6
-const STATUS_KEYS = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED']
+const STATUS_KEYS = ['OPEN', 'IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER', 'MAINTAINER_COMPLETED', 'RESOLVED', 'CLOSED', 'REJECTED']
 const CATEGORY_KEYS = ['INFRASTRUCTURE', 'FACILITIES', 'CLEANLINESS', 'FOOD', 'DISCIPLINE', 'OTHERS']
 
 function buildCategoryStatusBreakdown(rows) {
@@ -61,7 +61,11 @@ async function monthlyComplaintCounts(where) {
 }
 
 async function complaintBreakdown(where) {
-  const [byStatus, byCategory, byCategoryStatusRows, total, last30Days, monthly] = await Promise.all([
+  // Mirrors the client's urgency bands: <3 days neutral, 3-7 warning, 7+ danger.
+  const DAY_MS = 24 * 60 * 60 * 1000
+  const now = Date.now()
+  const pending = { ...where, status: { notIn: ['CLOSED', 'REJECTED'] } }
+  const [byStatus, byCategory, byCategoryStatusRows, total, last30Days, monthly, agingNeutral, agingWarning, agingDanger, resolvedRows] = await Promise.all([
     prisma.complaint.groupBy({ by: ['status'], where, _count: true }),
     prisma.complaint.groupBy({ by: ['category'], where, _count: true }),
     prisma.complaint.groupBy({ by: ['category', 'status'], where, _count: true }),
@@ -70,10 +74,23 @@ async function complaintBreakdown(where) {
       where: { ...where, createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } },
     }),
     monthlyComplaintCounts(where),
+    prisma.complaint.count({ where: { ...pending, statusChangedAt: { gt: new Date(now - 3 * DAY_MS) } } }),
+    prisma.complaint.count({
+      where: { ...pending, statusChangedAt: { lte: new Date(now - 3 * DAY_MS), gt: new Date(now - 7 * DAY_MS) } },
+    }),
+    prisma.complaint.count({ where: { ...pending, statusChangedAt: { lte: new Date(now - 7 * DAY_MS) } } }),
+    prisma.complaint.findMany({ where: { ...where, resolvedAt: { not: null } }, select: { createdAt: true, resolvedAt: true } }),
   ])
+  const resolutionMs = resolvedRows.map((r) => r.resolvedAt.getTime() - r.createdAt.getTime())
+  const resolution = {
+    count: resolutionMs.length,
+    avgMs: resolutionMs.length ? Math.round(resolutionMs.reduce((a, b) => a + b, 0) / resolutionMs.length) : null,
+  }
   return {
     total,
     last30Days,
+    resolution,
+    aging: { neutral: agingNeutral, warning: agingWarning, danger: agingDanger },
     byStatus: Object.fromEntries(byStatus.map((r) => [r.status, r._count])),
     byCategory: Object.fromEntries(byCategory.map((r) => [r.category, r._count])),
     byCategoryStatus: buildCategoryStatusBreakdown(byCategoryStatusRows),

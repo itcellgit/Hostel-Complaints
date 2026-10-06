@@ -1,6 +1,6 @@
-import { STATUS_COLOR, STATUS_LABEL } from '../../lib/colors.js'
+import { STATUS_COLOR, statusLabelFor } from '../../lib/colors.js'
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, assigneeRole }) {
   const color = STATUS_COLOR[status] ?? '#898781'
   return (
     <span
@@ -15,7 +15,7 @@ export function StatusBadge({ status }) {
         style={{ backgroundColor: color, boxShadow: `0 0 0 3px color-mix(in srgb, ${color} 25%, transparent)` }}
         aria-hidden="true"
       />
-      {STATUS_LABEL[status] ?? status}
+      {statusLabelFor(status, assigneeRole)}
     </span>
   )
 }

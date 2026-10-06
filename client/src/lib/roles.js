@@ -15,6 +15,7 @@ export const ROLE_HOME = {
   COMPUTER_CENTER: '/cell',
   PRODUCTION_CELL: '/cell',
   CIVIL_MAINTENANCE: '/cell',
+  MAINTAINER: '/maintainer',
 }
 
 export const ROLE_LABEL = {
@@ -30,6 +31,7 @@ export const ROLE_LABEL = {
   COMPUTER_CENTER: 'Computer Center',
   PRODUCTION_CELL: 'Production Cell',
   CIVIL_MAINTENANCE: 'Civil Maintenance',
+  MAINTAINER: 'Maintainer',
 }
 
 export function homeFor(role) {

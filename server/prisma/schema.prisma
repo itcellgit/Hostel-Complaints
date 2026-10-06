@@ -27,6 +27,7 @@ enum UserRole {
   COMPUTER_CENTER
   PRODUCTION_CELL
   CIVIL_MAINTENANCE
+  MAINTAINER
 }
 
 enum StaffRole {
@@ -54,6 +55,8 @@ enum ComplaintCategory {
 enum ComplaintStatus {
   OPEN
   IN_PROGRESS
+  ASSIGNED_TO_MAINTAINER
+  MAINTAINER_COMPLETED
   RESOLVED
   CLOSED
   REJECTED
@@ -158,6 +161,8 @@ model User {
   role               UserRole
   isActive           Boolean   @default(true)
   mustChangePassword Boolean   @default(true)
+  department         String?
+  phoneNumber        String?
   principalCollegeId String?
   lastLoginAt        DateTime?
   // Set when the account owner submits "Forgot password?" on the login
@@ -174,6 +179,7 @@ model User {
   deanInfraHostels    DeanInfraHostel[]
   recordedFeePayments FeePayment[]        @relation("FeeRecordedBy")
   assignedComplaints  Complaint[]         @relation("ComplaintAssignee")
+  maintainerComplaints Complaint[]        @relation("ComplaintMaintainer")
   closedComplaints    Complaint[]         @relation("ComplaintClosedBy")
   complaintActivities ComplaintActivity[]
   devices             Device[]
@@ -340,6 +346,11 @@ model Complaint {
   resolutionRemarks  String?
   resolutionImagePath String?
   estimatedCompletionAt DateTime?
+  maintainerUserId   String?
+  maintainerProofPath String?
+  maintainerCompletedAt DateTime?
+  // Last time `status` changed; drives the "time in current status" urgency colours.
+  statusChangedAt    DateTime           @default(now())
   closedByUserId     String?
   closingComment     String?
   resolvedAt         DateTime?
@@ -350,6 +361,7 @@ model Complaint {
   hostel       Hostel              @relation(fields: [hostelId], references: [id])
   student      Student?            @relation(fields: [studentId], references: [id])
   assignedTo   User                @relation("ComplaintAssignee", fields: [assignedToUserId], references: [id])
+  maintainer   User?               @relation("ComplaintMaintainer", fields: [maintainerUserId], references: [id])
   closedByUser User?               @relation("ComplaintClosedBy", fields: [closedByUserId], references: [id])
   activities   ComplaintActivity[]
 

@@ -11,6 +11,8 @@ import ChangePasswordPage from './pages/ChangePasswordPage.jsx'
 
 import ComplaintListPage from './pages/complaints/ComplaintListPage.jsx'
 import ComplaintDetailPage from './pages/complaints/ComplaintDetailPage.jsx'
+import DeanActivityPage from './pages/complaints/DeanActivityPage.jsx'
+import MaintainerTasksPage from './pages/complaints/MaintainerTasksPage.jsx'
 
 import AdminCollegesPage from './pages/admin/AdminCollegesPage.jsx'
 import AdminCollegeDetailPage from './pages/admin/AdminCollegeDetailPage.jsx'
@@ -89,7 +91,15 @@ export default function App() {
       <Route element={<ProtectedRoute roles={['DEAN_INFRA']} />}>
         <Route path="/dean" element={<AppLayout />}>
           <Route index element={<ComplaintListPage basePath="/dean" title="Complaint Queue" />} />
+          <Route path="activity" element={<DeanActivityPage />} />
           <Route path=":id" element={<ComplaintDetailPage basePath="/dean" />} />
+        </Route>
+      </Route>
+
+      <Route element={<ProtectedRoute roles={['MAINTAINER']} />}>
+        <Route path="/maintainer" element={<AppLayout />}>
+          <Route index element={<MaintainerTasksPage />} />
+          <Route path=":id" element={<ComplaintDetailPage basePath="/maintainer" />} />
         </Route>
       </Route>
 

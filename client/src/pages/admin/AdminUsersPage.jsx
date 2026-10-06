@@ -14,7 +14,12 @@ import { CredentialsModal } from '../../components/ui/CredentialsModal.jsx'
 import { ImpersonateButton } from '../../components/admin/ImpersonateButton.jsx'
 import { ROLE_LABEL } from '../../lib/roles.js'
 
-const emptyForm = { loginId: '', role: 'PRINCIPAL', principalCollegeId: '', hostelIds: [] }
+const DEPARTMENT_OPTIONS = ['EPMC', 'Maintenance Cell', 'Production Center', 'Energy Cell', 'Computer Center']
+
+function createEmptyForm() {
+  return { loginId: '', role: 'ADMIN', department: '', phoneNumber: '', principalCollegeId: '', hostelIds: [] }
+}
+
 const PAGE_SIZE = 20
 
 export default function AdminUsersPage() {
@@ -39,7 +44,7 @@ export default function AdminUsersPage() {
   const { data: hostels } = useQuery({ queryKey: ['hostels'], queryFn: () => hostelsApi.list() })
 
   const [showCreate, setShowCreate] = useState(false)
-  const [form, setForm] = useState(emptyForm)
+  const [form, setForm] = useState(createEmptyForm())
   const [credentials, setCredentials] = useState(null)
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState(null)
@@ -53,7 +58,7 @@ export default function AdminUsersPage() {
     onSuccess: ({ user, tempPassword }) => {
       invalidate()
       setShowCreate(false)
-      setForm(emptyForm)
+      setForm(createEmptyForm())
       setCredentials({ loginId: user.loginId, tempPassword })
     },
   })
@@ -76,6 +81,8 @@ export default function AdminUsersPage() {
     setEditingUser(user)
     setEditForm({
       loginId: user.loginId,
+      department: user.department ?? '',
+      phoneNumber: user.phoneNumber ?? '',
       principalCollegeId: user.principalCollege?.id ?? '',
       hostelIds: user.deanInfraHostels.map((l) => l.hostel.id),
     })
@@ -135,6 +142,8 @@ export default function AdminUsersPage() {
             emptyMessage={q ? 'No users match your search.' : 'No users yet.'}
             columns={[
               { key: 'loginId', header: 'Login ID' },
+              { key: 'department', header: 'Department', render: (r) => r.department ?? '—' },
+              { key: 'phoneNumber', header: 'Phone Number', render: (r) => r.phoneNumber ?? '—' },
               { key: 'role', header: 'Role', render: (r) => ROLE_LABEL[r.role] ?? r.role },
               {
                 key: 'scope',
@@ -206,14 +215,41 @@ export default function AdminUsersPage() {
           title="Add user"
           onClose={() => setShowCreate(false)}
           footer={
-            <Button disabled={createMutation.isPending} onClick={() => createMutation.mutate()}>
+            <Button type="submit" form="add-user-form" disabled={createMutation.isPending}>
               Create
             </Button>
           }
         >
-          <div className="space-y-3">
+          <form
+            id="add-user-form"
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              createMutation.mutate()
+            }}
+          >
             <FormField label="Login email">
               <Input type="email" value={form.loginId} onChange={(e) => setForm({ ...form, loginId: e.target.value })} required />
+            </FormField>
+            <FormField label={form.role === 'MAINTAINER' ? 'Department (required for Maintainer)' : 'Department'}>
+              <Select
+                value={form.department}
+                required={form.role === 'MAINTAINER'}
+                onChange={(e) => setForm({ ...form, department: e.target.value })}
+              >
+                <option value="">Select a department…</option>
+                {DEPARTMENT_OPTIONS.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Phone Number">
+              <Input
+                type="tel"
+                value={form.phoneNumber}
+                onChange={(e) => setForm({ ...form, phoneNumber: e.target.value })}
+                placeholder="Enter phone number"
+              />
             </FormField>
             <FormField label="Role">
               <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
@@ -226,6 +262,7 @@ export default function AdminUsersPage() {
                 <option value="COMPUTER_CENTER">Computer Center</option>
                 <option value="PRODUCTION_CELL">Production Cell</option>
                 <option value="CIVIL_MAINTENANCE">Civil Maintenance</option>
+                <option value="MAINTAINER">Maintainer</option>
               </Select>
             </FormField>
             {form.role === 'PRINCIPAL' && (
@@ -251,7 +288,7 @@ export default function AdminUsersPage() {
               </FormField>
             )}
             <ErrorBanner message={createMutation.error?.response?.data?.error} />
-          </div>
+          </form>
         </Modal>
       )}
 
@@ -272,6 +309,22 @@ export default function AdminUsersPage() {
                 value={editForm.loginId}
                 onChange={(e) => setEditForm({ ...editForm, loginId: e.target.value })}
                 required
+              />
+            </FormField>
+            <FormField label="Department">
+              <Select value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}>
+                <option value="">Select a department…</option>
+                {DEPARTMENT_OPTIONS.map((department) => (
+                  <option key={department} value={department}>{department}</option>
+                ))}
+              </Select>
+            </FormField>
+            <FormField label="Phone Number">
+              <Input
+                type="tel"
+                value={editForm.phoneNumber}
+                onChange={(e) => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+                placeholder="Enter phone number"
               />
             </FormField>
             {editingUser.role === 'PRINCIPAL' && (

@@ -54,6 +54,8 @@ export function complaintWhereForUser(user) {
       return { hostelId: { in: user.hostelIds ?? [] } }
     case 'STUDENT':
       return { studentId: user.studentId ?? '__none__' }
+    case 'MAINTAINER':
+      return { maintainerUserId: user.id }
     default:
       // Cell roles (EPMC, Energy Cell, etc.) aren't scoped to a hostel —
       // they only ever see complaints currently forwarded to them.

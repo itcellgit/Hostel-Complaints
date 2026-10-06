@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Building2, Users, MessageSquareWarning, Wallet, Contact, ListChecks } from 'lucide-react'
+import { Building2, Users, MessageSquareWarning, Wallet, Contact, ListChecks, Timer } from 'lucide-react'
 import { useAuth } from '../../context/authContext.js'
 import { dashboardApi } from '../../api/resources.js'
 import { StatTile } from '../ui/Card.jsx'
@@ -11,7 +11,7 @@ import { StatusBadge } from '../complaints/StatusBadge.jsx'
 import { CategoryBadge } from '../complaints/CategoryBadge.jsx'
 import { BreakdownBarChart } from './BreakdownBarChart.jsx'
 import { CATEGORY_COLOR, CATEGORY_LABEL, STATUS_COLOR, STATUS_LABEL, TREND_COLOR } from '../../lib/colors.js'
-import { formatCurrency, formatCurrencyCompact, formatDate } from '../../lib/format.js'
+import { formatCurrency, formatCurrencyCompact, formatDate, formatDuration } from '../../lib/format.js'
 
 export function DashboardSummary({ title, complaintsBasePath }) {
   const navigate = useNavigate()
@@ -68,6 +68,27 @@ export function DashboardSummary({ title, complaintsBasePath }) {
         <StatTile label="Active students" value={data.activeStudentCount} icon={Users} tone={1} className="animate-fade-in-up stagger-1" />
         <StatTile label="Complaints (30d)" value={data.complaints.last30Days} hint={`${data.complaints.total} total`} icon={MessageSquareWarning} tone={2} className="animate-fade-in-up stagger-2" />
         <StatTile label="Fees collected" value={formatCurrency(data.feeCollectedTotal)} icon={Wallet} tone={3} className="animate-fade-in-up stagger-3" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {[
+          { key: 'neutral', label: 'Pending 0–3 days', value: data.complaints.aging?.neutral ?? 0, cls: 'border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200' },
+          { key: 'warning', label: 'Pending 3–7 days', value: data.complaints.aging?.warning ?? 0, cls: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-400' },
+          { key: 'danger', label: 'Pending 7+ days', value: data.complaints.aging?.danger ?? 0, cls: 'border-red-300 bg-red-50 text-red-700 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-400' },
+        ].map((tile) => (
+          <div key={tile.key} className={`rounded-xl border p-4 ${tile.cls}`}>
+            <p className="text-xs font-medium uppercase tracking-wide">{tile.label}</p>
+            <p className="mt-1.5 text-2xl font-bold">{tile.value}</p>
+            <p className="mt-1 text-xs opacity-80">in the same status</p>
+          </div>
+        ))}
+        <StatTile
+          label="Avg resolution time"
+          value={formatDuration(data.complaints.resolution?.avgMs)}
+          hint={`across ${data.complaints.resolution?.count ?? 0} resolved complaints`}
+          icon={Timer}
+          tone={3}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

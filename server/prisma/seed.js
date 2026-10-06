@@ -31,10 +31,10 @@ async function wipe() {
   await prisma.college.deleteMany()
 }
 
-async function makeUser({ loginId, role, principalCollegeId, mustChangePassword = true }) {
+async function makeUser({ loginId, role, department, phoneNumber, principalCollegeId, mustChangePassword = true }) {
   const passwordHash = await hashPassword(DEMO_PASSWORD)
   return prisma.user.create({
-    data: { loginId, passwordHash, role, principalCollegeId, mustChangePassword },
+    data: { loginId, passwordHash, role, department, phoneNumber, principalCollegeId, mustChangePassword },
   })
 }
 
@@ -76,10 +76,10 @@ async function main() {
   })
 
   console.log('Creating admin, principal, registrar, dean infra users...')
-  await makeUser({ loginId: 'itcell@git.edu', role: 'ADMIN', mustChangePassword: false })
-  await makeUser({ loginId: 'principal@git.edu', role: 'PRINCIPAL', principalCollegeId: git.id })
-  await makeUser({ loginId: 'registrar@klsbelagavi.org', role: 'REGISTRAR' })
-  const deanUser = await makeUser({ loginId: 'dean_infra@git.edu', role: 'DEAN_INFRA' })
+  await makeUser({ loginId: 'itcell@git.edu', role: 'ADMIN', department: 'EPMC', phoneNumber: '9900001001', mustChangePassword: false })
+  await makeUser({ loginId: 'principal@git.edu', role: 'PRINCIPAL', department: 'Computer Center', phoneNumber: '9900001002', principalCollegeId: git.id })
+  await makeUser({ loginId: 'registrar@klsbelagavi.org', role: 'REGISTRAR', department: 'Maintenance Cell', phoneNumber: '9900001003' })
+  const deanUser = await makeUser({ loginId: 'dean_infra@git.edu', role: 'DEAN_INFRA', department: 'Production Center', phoneNumber: '9900001004' })
   await prisma.deanInfraHostel.createMany({
     data: [
       { userId: deanUser.id, hostelId: boysHostel.id },
@@ -89,7 +89,7 @@ async function main() {
 
   console.log('Creating rectors and faculty...')
   async function makeStaff({ loginId, roleType, hostelId, firstName, lastName, phone }) {
-    const user = await makeUser({ loginId, role: roleType })
+    const user = await makeUser({ loginId, role: roleType, department: 'Maintenance Cell', phoneNumber: phone })
     return prisma.staff.create({
       data: {
         firstName,

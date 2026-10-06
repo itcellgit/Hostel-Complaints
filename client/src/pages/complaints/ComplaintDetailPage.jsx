@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, FileText, PlayCircle, CheckCircle2, XCircle, MessageCircle, Send, Clock, Upload } from 'lucide-react'
+import { ArrowLeft, FileText, PlayCircle, CheckCircle2, XCircle, MessageCircle, Send, Clock, Upload, Wrench, ShieldCheck } from 'lucide-react'
 import { complaintsApi } from '../../api/resources.js'
 import { useAuth } from '../../context/authContext.js'
 import { Card } from '../../components/ui/Card.jsx'
@@ -13,7 +13,11 @@ import { StatusBadge } from '../../components/complaints/StatusBadge.jsx'
 import { CategoryBadge } from '../../components/complaints/CategoryBadge.jsx'
 import { FeeSummaryCard } from '../../components/complaints/FeeSummaryCard.jsx'
 import { ComplaintTimeline } from '../../components/complaints/ComplaintTimeline.jsx'
-import { formatDateTime } from '../../lib/format.js'
+import { UrgencyBadge } from '../../components/complaints/UrgencyBadge.jsx'
+import { HandlerInfo } from '../../components/complaints/HandlerInfo.jsx'
+import { MaintainerCompleteModal } from '../../components/complaints/MaintainerCompleteModal.jsx'
+import { currentHandler } from '../../lib/complaint.js'
+import { formatDateTime, formatDuration } from '../../lib/format.js'
 import { CELL_ROLES, ROLE_LABEL } from '../../lib/roles.js'
 
 export default function ComplaintDetailPage({ basePath }) {
@@ -32,10 +36,19 @@ export default function ComplaintDetailPage({ basePath }) {
   const [closeComment, setCloseComment] = useState('')
   const [comment, setComment] = useState('')
   const [actionError, setActionError] = useState('')
+  const [maintainerId, setMaintainerId] = useState('')
+  const [assignComment, setAssignComment] = useState('')
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['complaint', id],
     queryFn: () => complaintsApi.get(id),
+  })
+
+  // Only a facility cell assigns work, and only to its own department's maintainers.
+  const { data: maintainers = [] } = useQuery({
+    queryKey: ['maintainers'],
+    queryFn: complaintsApi.maintainers,
+    enabled: CELL_ROLES.includes(user.role),
   })
 
   function invalidate() {
@@ -88,6 +101,17 @@ export default function ComplaintDetailPage({ basePath }) {
     onError: (err) => setActionError(err.response?.data?.error ?? 'Action failed'),
   })
 
+  const assignMutation = useMutation({
+    mutationFn: () => complaintsApi.assignMaintainer(id, { maintainerId, comment: assignComment || undefined }),
+    onSuccess: () => {
+      setMaintainerId('')
+      setAssignComment('')
+      setActionError('')
+      invalidate()
+    },
+    onError: (err) => setActionError(err.response?.data?.error ?? 'Could not assign maintainer'),
+  })
+
   const commentMutation = useMutation({
     mutationFn: (comment) => complaintsApi.comment(id, comment),
     onSuccess: () => {
@@ -106,8 +130,14 @@ export default function ComplaintDetailPage({ basePath }) {
   const isOwnComplaint = user.role === 'STUDENT' && complaint.student?.id === user.studentId
   const isCellRole = CELL_ROLES.includes(user.role)
   const isAssignee = complaint.assignedTo?.id === user.id
-  const canComment = user.role === 'DEAN_INFRA' || user.role === 'FACULTY' || user.role === 'RECTOR' || isCellRole || isOwnComplaint
+  const canComment = user.role === 'DEAN_INFRA' || user.role === 'FACULTY' || user.role === 'RECTOR' || user.role === 'MAINTAINER' || isCellRole || isOwnComplaint
   const canClose = complaint.status === 'RESOLVED' && (isOwnComplaint || user.role === 'FACULTY')
+
+  const canAssignMaintainer =
+    isCellRole && isAssignee && ['IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER', 'MAINTAINER_COMPLETED'].includes(complaint.status)
+  const canVerify = isCellRole && isAssignee && complaint.status === 'MAINTAINER_COMPLETED'
+  const canMaintainerComplete = user.role === 'MAINTAINER' && complaint.maintainer?.id === user.id && complaint.status === 'ASSIGNED_TO_MAINTAINER'
+  const handler = currentHandler(complaint)
 
   const canForward = isAssignee && user.role === 'DEAN_INFRA' && complaint.status === 'OPEN'
   const canWork = isAssignee && (user.role === 'FACULTY' || isCellRole) && ['OPEN', 'IN_PROGRESS'].includes(complaint.status)
@@ -131,7 +161,8 @@ export default function ComplaintDetailPage({ basePath }) {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-lg font-semibold text-slate-900 dark:text-white">{complaint.complaintNo}</h1>
         <CategoryBadge category={complaint.category} />
-        <StatusBadge status={complaint.status} />
+        <StatusBadge status={complaint.status} assigneeRole={complaint.assignedTo?.role} />
+        <UrgencyBadge status={complaint.status} since={complaint.statusChangedAt} />
         <span className="text-xs text-slate-400">Filed {formatDateTime(complaint.createdAt)}</span>
       </div>
 
@@ -179,11 +210,11 @@ export default function ComplaintDetailPage({ basePath }) {
                   </dd>
                 </div>
               )}
-              {complaint.assignedTo && !['CLOSED', 'REJECTED'].includes(complaint.status) && (
+              {handler && (
                 <div>
                   <dt className="text-slate-500 dark:text-slate-400">Currently with</dt>
                   <dd className="mt-0.5 text-slate-800 dark:text-slate-100">
-                    {ROLE_LABEL[complaint.assignedTo.role] ?? complaint.assignedTo.role}
+                    <HandlerInfo handler={handler} />
                   </dd>
                 </div>
               )}
@@ -197,6 +228,14 @@ export default function ComplaintDetailPage({ basePath }) {
                 <div>
                   <dt className="text-slate-500 dark:text-slate-400">Completed on</dt>
                   <dd className="mt-0.5 text-slate-800 dark:text-slate-100">{formatDateTime(complaint.resolvedAt)}</dd>
+                </div>
+              )}
+              {complaint.resolvedAt && (
+                <div>
+                  <dt className="text-slate-500 dark:text-slate-400">Resolution time</dt>
+                  <dd className="mt-0.5 font-medium text-slate-800 dark:text-slate-100">
+                    {formatDuration(new Date(complaint.resolvedAt) - new Date(complaint.createdAt))}
+                  </dd>
                 </div>
               )}
               {complaint.attachmentPath && (
@@ -233,6 +272,20 @@ export default function ComplaintDetailPage({ basePath }) {
                   </dd>
                 </div>
               )}
+              {complaint.maintainerProofPath && (
+                <div className="col-span-2">
+                  <dt className="text-slate-500 dark:text-slate-400">Maintainer's proof of completion</dt>
+                  <dd className="mt-1">
+                    <a href={complaint.maintainerProofPath} target="_blank" rel="noreferrer">
+                      <img
+                        src={complaint.maintainerProofPath}
+                        alt="Maintainer proof of work"
+                        className="h-40 w-auto rounded-lg border border-slate-200 object-cover dark:border-slate-700"
+                      />
+                    </a>
+                  </dd>
+                </div>
+              )}
               {complaint.closingComment && (
                 <div className="col-span-2">
                   <dt className="text-slate-500 dark:text-slate-400">Closing comment</dt>
@@ -244,8 +297,20 @@ export default function ComplaintDetailPage({ basePath }) {
             </dl>
           </Card>
 
-          {(canWork || canReject || canComment) && (
+          {(canWork || canReject || canComment || canVerify || canMaintainerComplete) && (
             <div className="flex flex-wrap gap-2">
+              {canMaintainerComplete && (
+                <Button variant="success" onClick={() => setOpenModal('maintainerComplete')}>
+                  <CheckCircle2 className="h-4 w-4" strokeWidth={2.25} />
+                  Mark as completed
+                </Button>
+              )}
+              {canVerify && (
+                <Button variant="success" disabled={statusMutation.isPending} onClick={() => statusMutation.mutate({ status: 'RESOLVED' })}>
+                  <ShieldCheck className="h-4 w-4" strokeWidth={2.25} />
+                  Verify & resolve
+                </Button>
+              )}
               {canWork && (
                 <Button variant="secondary" onClick={() => setOpenModal('work')}>
                   {complaint.status === 'OPEN' ? (
@@ -315,7 +380,40 @@ export default function ComplaintDetailPage({ basePath }) {
             </Card>
           )}
 
-          {isCellRole && isAssignee && complaint.status === 'IN_PROGRESS' && (
+          {canAssignMaintainer && (
+            <Card title={complaint.status === 'MAINTAINER_COMPLETED' ? 'Send back for rework' : 'Assign to maintainer'} icon={Wrench}>
+              <div className="space-y-3">
+                {complaint.maintainer && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    Current maintainer: <HandlerInfo handler={complaint.maintainer} />
+                  </p>
+                )}
+                <FormField label="Maintainer">
+                  <Select value={maintainerId} onChange={(e) => setMaintainerId(e.target.value)}>
+                    <option value="">Select a maintainer…</option>
+                    {maintainers.map((m) => (
+                      <option key={m.id} value={m.id}>{m.loginId}</option>
+                    ))}
+                  </Select>
+                </FormField>
+                {maintainers.length === 0 && (
+                  <p className="text-xs text-amber-600">No active maintainers are set up for your department yet — contact the Admin.</p>
+                )}
+                <Textarea
+                  placeholder="Instructions for the maintainer (optional)"
+                  value={assignComment}
+                  onChange={(e) => setAssignComment(e.target.value)}
+                />
+                <ErrorBanner message={actionError} />
+                <Button disabled={assignMutation.isPending || !maintainerId} onClick={() => assignMutation.mutate()}>
+                  <Wrench className="h-4 w-4" strokeWidth={2.25} />
+                  {complaint.status === 'IN_PROGRESS' ? 'Assign' : 'Reassign'}
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {isCellRole && isAssignee && ['IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER'].includes(complaint.status) && (
             <Card title="Estimated completion" icon={Clock}>
               <div className="space-y-3">
                 {complaint.estimatedCompletionAt && (
@@ -371,6 +469,8 @@ export default function ComplaintDetailPage({ basePath }) {
           )}
         </div>
       </div>
+
+      {openModal === 'maintainerComplete' && <MaintainerCompleteModal complaint={complaint} onClose={closeModal} />}
 
       {openModal === 'work' && (
         <Modal

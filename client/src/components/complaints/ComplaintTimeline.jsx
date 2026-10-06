@@ -29,7 +29,7 @@ export function ComplaintTimeline({ activities }) {
                 <p className="flex items-center gap-1.5 text-sm text-slate-800 dark:text-slate-100">
                   {a.action === 'COMMENT' && <MessageCircle className="h-3.5 w-3.5 shrink-0 text-slate-400" strokeWidth={2} />}
                   <span>
-                    <span className="font-medium">{a.user.loginId}</span> ({a.user.role}) {activityText(a)}
+                    <span className="font-medium">{a.user.loginId}</span> ({a.user.role}{a.user.department ? ` · ${a.user.department}` : ''}) {activityText(a)}
                   </span>
                 </p>
                 {a.comment && (

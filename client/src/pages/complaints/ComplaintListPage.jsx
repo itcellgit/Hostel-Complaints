@@ -10,8 +10,11 @@ import { Select } from '../../components/ui/FormField.jsx'
 import { Spinner } from '../../components/ui/Spinner.jsx'
 import { StatusBadge } from '../../components/complaints/StatusBadge.jsx'
 import { CategoryBadge } from '../../components/complaints/CategoryBadge.jsx'
+import { UrgencyBadge } from '../../components/complaints/UrgencyBadge.jsx'
+import { HandlerInfo } from '../../components/complaints/HandlerInfo.jsx'
+import { currentHandler } from '../../lib/complaint.js'
 import { CATEGORY_LABEL, STATUS_LABEL } from '../../lib/colors.js'
-import { formatDate, formatDateTime } from '../../lib/format.js'
+import { formatDate, formatDateTime, formatDuration } from '../../lib/format.js'
 
 const PAGE_SIZE = 20
 
@@ -100,12 +103,21 @@ export default function ComplaintListPage({ basePath, title = 'Complaints' }) {
                 { key: 'hostel', header: 'Hostel', render: (r) => r.hostel.name },
                 { key: 'student', header: 'Student', render: (r) => (r.student ? `${r.student.firstName} ${r.student.lastName} (${r.student.usn})` : 'Hostel-wide') },
                 { key: 'category', header: 'Category', render: (r) => <CategoryBadge category={r.category} /> },
-                { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+                { key: 'status', header: 'Status', render: (r) => <StatusBadge status={r.status} assigneeRole={r.assignedTo?.role} /> },
+                { key: 'inStatus', header: 'In status', render: (r) => <UrgencyBadge status={r.status} since={r.statusChangedAt} /> },
+                ...(user.role === 'STUDENT'
+                  ? [{ key: 'handler', header: 'Currently with', render: (r) => <HandlerInfo handler={currentHandler(r)} /> }]
+                  : []),
                 { key: 'createdAt', header: 'Filed on', render: (r) => formatDate(r.createdAt) },
                 ...(showEtaColumns
                   ? [
                       { key: 'estimatedCompletionAt', header: 'Est. completion', render: (r) => formatDateTime(r.estimatedCompletionAt) },
                       { key: 'resolvedAt', header: 'Completed on', render: (r) => formatDateTime(r.resolvedAt) },
+                      {
+                        key: 'resolutionTime',
+                        header: 'Resolution time',
+                        render: (r) => (r.resolvedAt ? formatDuration(new Date(r.resolvedAt) - new Date(r.createdAt)) : '—'),
+                      },
                     ]
                   : []),
               ]}

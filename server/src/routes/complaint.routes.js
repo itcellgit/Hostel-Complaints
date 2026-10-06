@@ -11,7 +11,7 @@ import { complaintWhereForUser } from '../utils/scope.js'
 import { badRequest, forbidden, notFound } from '../utils/httpError.js'
 import { nextComplaintNo } from '../utils/complaintNo.js'
 import { feeSummaryForStudent } from '../services/feeSummary.js'
-import { CELL_ROLES } from '../utils/cellRoles.js'
+import { CELL_ROLES, DEPARTMENT_BY_CELL_ROLE } from '../utils/cellRoles.js'
 import { sendPushToUsers } from '../services/push.js'
 
 export const complaintRouter = Router()
@@ -46,7 +46,8 @@ const complaintInclude = {
       program: { select: { name: true, code: true } },
     },
   },
-  assignedTo: { select: { id: true, loginId: true, role: true } },
+  assignedTo: { select: { id: true, loginId: true, role: true, department: true, phoneNumber: true } },
+  maintainer: { select: { id: true, loginId: true, role: true, department: true, phoneNumber: true } },
   closedByUser: { select: { id: true, loginId: true, role: true } },
 }
 
@@ -285,13 +286,59 @@ complaintRouter.post(
 )
 
 complaintRouter.get(
+  '/maintainers',
+  requireRole(...CELL_ROLES),
+  asyncHandler(async (req, res) => {
+    const maintainers = await prisma.user.findMany({
+      where: { role: 'MAINTAINER', isActive: true, department: DEPARTMENT_BY_CELL_ROLE[req.user.role] },
+      orderBy: { loginId: 'asc' },
+      select: { id: true, loginId: true, department: true, phoneNumber: true },
+    })
+    res.json({ maintainers })
+  }),
+)
+
+// Every complaint with its full activity trail, for Dean Infra's Activity tab.
+complaintRouter.get(
+  '/audit-trail',
+  requireRole('DEAN_INFRA', 'ADMIN'),
+  asyncHandler(async (req, res) => {
+    const where = { ...complaintWhereForUser(req.user) }
+    const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1)
+    const pageSize = Math.min(50, Math.max(1, Number.parseInt(req.query.pageSize, 10) || 10))
+
+    const [complaints, total] = await prisma.$transaction([
+      prisma.complaint.findMany({
+        where,
+        orderBy: { updatedAt: 'desc' },
+        include: {
+          ...complaintInclude,
+          activities: {
+            orderBy: { createdAt: 'asc' },
+            include: { user: { select: { id: true, loginId: true, role: true, department: true } } },
+          },
+        },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.complaint.count({ where }),
+    ])
+
+    res.json({
+      complaints,
+      pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+    })
+  }),
+)
+
+complaintRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
     const complaint = await loadComplaintScoped(req)
     const activities = await prisma.complaintActivity.findMany({
       where: { complaintId: complaint.id },
       orderBy: { createdAt: 'asc' },
-      include: { user: { select: { id: true, loginId: true, role: true } } },
+      include: { user: { select: { id: true, loginId: true, role: true, department: true } } },
     })
     res.json({ complaint: await withFeeSummary(complaint), activities })
   }),
@@ -304,6 +351,9 @@ complaintRouter.get(
 const STATUS_TRANSITIONS = {
   OPEN: ['IN_PROGRESS', 'REJECTED'],
   IN_PROGRESS: ['RESOLVED', 'REJECTED'],
+  // The cell verifies a maintainer's finished work by resolving it; a cell
+  // that isn't satisfied reassigns instead (see /assign-maintainer).
+  MAINTAINER_COMPLETED: ['RESOLVED'],
 }
 
 const forwardSchema = z.object({
@@ -328,7 +378,7 @@ complaintRouter.post(
 
     const updated = await prisma.complaint.update({
       where: { id: complaint.id },
-      data: { assignedToUserId: target.id, status: 'IN_PROGRESS' },
+      data: { assignedToUserId: target.id, status: 'IN_PROGRESS', statusChangedAt: new Date() },
       include: complaintInclude,
     })
     await prisma.complaintActivity.create({
@@ -367,7 +417,7 @@ complaintRouter.patch(
     if (complaint.assignedToUserId !== req.user.id) {
       return next(forbidden('This complaint is not assigned to you'))
     }
-    if (complaint.status !== 'IN_PROGRESS') {
+    if (!['IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER'].includes(complaint.status)) {
       return next(badRequest('The estimated completion time can only be set or changed while a complaint is in progress'))
     }
 
@@ -443,7 +493,9 @@ complaintRouter.patch(
 
     // The photo and ETA requirements are specific to the 5 facility cells —
     // Faculty resolving a disciplinary complaint directly needs neither.
-    if (status === 'RESOLVED' && CELL_ROLES.includes(req.user.role)) {
+    // Verifying a maintainer's completed work needs no extra photo or ETA —
+    // the maintainer's proof photo is carried over below.
+    if (status === 'RESOLVED' && CELL_ROLES.includes(req.user.role) && complaint.status !== 'MAINTAINER_COMPLETED') {
       if (!complaint.estimatedCompletionAt) {
         return next(badRequest('Please provide an estimated completion time before resolving this complaint'))
       }
@@ -453,6 +505,9 @@ complaintRouter.patch(
     }
 
     let resolutionImagePath = complaint.resolutionImagePath
+    if (complaint.status === 'MAINTAINER_COMPLETED' && status === 'RESOLVED') {
+      resolutionImagePath = complaint.maintainerProofPath ?? resolutionImagePath
+    }
     if (req.file) {
       const extension = path.extname(req.file.originalname) || '.jpg'
       const fileName = `${complaint.id}-resolution${extension}`
@@ -467,6 +522,7 @@ complaintRouter.patch(
         status,
         resolutionRemarks: resolutionRemarks ?? complaint.resolutionRemarks,
         resolutionImagePath,
+        statusChangedAt: new Date(),
         resolvedAt: status === 'RESOLVED' ? new Date() : complaint.resolvedAt,
       },
       include: complaintInclude,
@@ -489,6 +545,133 @@ complaintRouter.patch(
       complaint,
       `Complaint ${complaint.complaintNo} ${verb}`,
       resolutionRemarks || `Status is now ${status}`,
+    )
+
+    res.json({ complaint: await withFeeSummary(updated) })
+  }),
+)
+
+const assignMaintainerSchema = z.object({
+  maintainerId: z.string().min(1),
+  comment: z.string().optional(),
+})
+
+// Facility cell hands the job to one of its own department's maintainers.
+// Also used to send finished work back for rework by reassigning.
+complaintRouter.post(
+  '/:id/assign-maintainer',
+  requireRole(...CELL_ROLES),
+  asyncHandler(async (req, res, next) => {
+    const complaint = await loadComplaintScoped(req)
+    if (complaint.assignedToUserId !== req.user.id) {
+      return next(forbidden('This complaint is not assigned to you'))
+    }
+    if (!['IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER', 'MAINTAINER_COMPLETED'].includes(complaint.status)) {
+      return next(badRequest(`Cannot assign a maintainer to a ${complaint.status} complaint`))
+    }
+
+    const { maintainerId, comment } = assignMaintainerSchema.parse(req.body)
+    const maintainer = await prisma.user.findFirst({
+      where: {
+        id: maintainerId,
+        role: 'MAINTAINER',
+        isActive: true,
+        department: DEPARTMENT_BY_CELL_ROLE[req.user.role],
+      },
+    })
+    if (!maintainer) {
+      return next(badRequest('Select an active maintainer from your department'))
+    }
+
+    const updated = await prisma.complaint.update({
+      where: { id: complaint.id },
+      data: {
+        status: 'ASSIGNED_TO_MAINTAINER',
+        maintainerUserId: maintainer.id,
+        maintainerProofPath: null,
+        maintainerCompletedAt: null,
+        statusChangedAt: new Date(),
+      },
+      include: complaintInclude,
+    })
+    await prisma.complaintActivity.create({
+      data: {
+        complaintId: complaint.id,
+        userId: req.user.id,
+        action: 'STATUS_CHANGE',
+        fromStatus: complaint.status,
+        toStatus: 'ASSIGNED_TO_MAINTAINER',
+        comment: `Assigned to maintainer ${maintainer.loginId}${comment ? `: ${comment}` : ''}`,
+      },
+    })
+
+    notify(
+      [maintainer.id],
+      req.user.id,
+      complaint,
+      `New task ${complaint.complaintNo}`,
+      comment || 'A complaint has been assigned to you',
+    )
+    notify(
+      [await complainantUserId(complaint)],
+      req.user.id,
+      complaint,
+      `Update on ${complaint.complaintNo}`,
+      `Assigned to ${maintainer.loginId}`,
+    )
+
+    res.json({ complaint: await withFeeSummary(updated) })
+  }),
+)
+
+const maintainerCompleteSchema = z.object({ remarks: z.string().optional() })
+
+complaintRouter.post(
+  '/:id/maintainer-complete',
+  requireRole('MAINTAINER'),
+  complaintUpload.single('proofImage'),
+  asyncHandler(async (req, res, next) => {
+    const complaint = await loadComplaintScoped(req)
+    if (complaint.status !== 'ASSIGNED_TO_MAINTAINER') {
+      return next(badRequest('Only an assigned task can be marked completed'))
+    }
+    if (!req.file) {
+      return next(badRequest('A photo of the completed work is required'))
+    }
+
+    const { remarks } = maintainerCompleteSchema.parse({ remarks: req.body.remarks })
+    const extension = path.extname(req.file.originalname) || '.jpg'
+    const fileName = `${complaint.id}-maintainer-${Date.now()}${extension}`
+    await fs.writeFile(path.join(complaintUploadDir, fileName), req.file.buffer)
+    const maintainerProofPath = `/uploads/complaints/${fileName}`
+
+    const updated = await prisma.complaint.update({
+      where: { id: complaint.id },
+      data: {
+        status: 'MAINTAINER_COMPLETED',
+        maintainerProofPath,
+        maintainerCompletedAt: new Date(),
+        statusChangedAt: new Date(),
+      },
+      include: complaintInclude,
+    })
+    await prisma.complaintActivity.create({
+      data: {
+        complaintId: complaint.id,
+        userId: req.user.id,
+        action: 'STATUS_CHANGE',
+        fromStatus: 'ASSIGNED_TO_MAINTAINER',
+        toStatus: 'MAINTAINER_COMPLETED',
+        comment: remarks || 'Work completed — proof photo attached',
+      },
+    })
+
+    notify(
+      [complaint.assignedToUserId],
+      req.user.id,
+      complaint,
+      `Work completed on ${complaint.complaintNo}`,
+      'Maintainer has finished — please verify',
     )
 
     res.json({ complaint: await withFeeSummary(updated) })
@@ -519,6 +702,7 @@ complaintRouter.post(
       data: {
         status: 'CLOSED',
         closedByUserId: req.user.id,
+        statusChangedAt: new Date(),
         closingComment: comment,
         closedAt: new Date(),
       },
@@ -551,7 +735,7 @@ const commentSchema = z.object({ comment: z.string().min(1) })
 
 complaintRouter.post(
   '/:id/comments',
-  requireRole('DEAN_INFRA', 'FACULTY', 'RECTOR', 'STUDENT', ...CELL_ROLES),
+  requireRole('DEAN_INFRA', 'FACULTY', 'RECTOR', 'STUDENT', 'MAINTAINER', ...CELL_ROLES),
   asyncHandler(async (req, res, next) => {
     const complaint = await loadComplaintScoped(req)
     if (req.user.role === 'STUDENT' && complaint.studentId !== req.user.studentId) {

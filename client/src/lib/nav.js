@@ -12,6 +12,7 @@ import {
   BookOpen,
   FilePlus2,
   History,
+  ListChecks,
 } from 'lucide-react'
 
 export const NAV_BY_ROLE = {
@@ -36,6 +37,10 @@ export const NAV_BY_ROLE = {
   ],
   DEAN_INFRA: [
     { to: '/dean', label: 'Complaint Queue', end: true, icon: ClipboardList },
+    { to: '/dean/activity', label: 'Activity', icon: History },
+  ],
+  MAINTAINER: [
+    { to: '/maintainer', label: 'Tasks', end: true, icon: ListChecks },
   ],
   EPMC: [
     { to: '/cell', label: 'Complaint Queue', end: true, icon: ClipboardList },
