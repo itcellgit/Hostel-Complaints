@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { prisma } from '../config/prisma.js'
 import { asyncHandler } from '../middleware/asyncHandler.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
-import { complaintWhereForUser } from '../utils/scope.js'
+import { agingWhere, complaintWhereForUser } from '../utils/scope.js'
 import { badRequest, forbidden, notFound } from '../utils/httpError.js'
 import { nextComplaintNo } from '../utils/complaintNo.js'
 import { feeSummaryForStudent } from '../services/feeSummary.js'
@@ -90,7 +90,10 @@ complaintRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const where = { ...complaintWhereForUser(req.user) }
-    if (req.query.status) where.status = req.query.status
+    const aging = req.query.ageBucket ? agingWhere(String(req.query.ageBucket)) : null
+    if (req.query.ageBucket && !aging) throw badRequest('Invalid ageBucket')
+    if (aging) Object.assign(where, aging)
+    else if (req.query.status) where.status = req.query.status
     if (req.query.category) where.category = req.query.category
     if (req.query.hostelId) where.hostelId = req.query.hostelId
     if (req.query.q) {
@@ -115,7 +118,7 @@ complaintRouter.get(
     const [complaints, total] = await prisma.$transaction([
       prisma.complaint.findMany({
         where,
-        orderBy: { createdAt: 'desc' },
+        orderBy: aging ? { statusChangedAt: 'asc' } : { createdAt: 'desc' },
         include: complaintInclude,
         skip: (page - 1) * pageSize,
         take: pageSize,

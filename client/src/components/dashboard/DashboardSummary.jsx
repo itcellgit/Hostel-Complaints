@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Building2, Users, MessageSquareWarning, Wallet, Contact, ListChecks, Timer } from 'lucide-react'
@@ -10,12 +11,14 @@ import { Spinner, ErrorBanner } from '../ui/Spinner.jsx'
 import { StatusBadge } from '../complaints/StatusBadge.jsx'
 import { CategoryBadge } from '../complaints/CategoryBadge.jsx'
 import { BreakdownBarChart } from './BreakdownBarChart.jsx'
+import { AgingDetailModal } from './AgingDetailModal.jsx'
 import { CATEGORY_COLOR, CATEGORY_LABEL, STATUS_COLOR, STATUS_LABEL, TREND_COLOR } from '../../lib/colors.js'
 import { formatCurrency, formatCurrencyCompact, formatDate, formatDuration } from '../../lib/format.js'
 
 export function DashboardSummary({ title, complaintsBasePath }) {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [agingBucket, setAgingBucket] = useState(null)
   const { data, isLoading, error } = useQuery({ queryKey: ['dashboard', 'summary'], queryFn: dashboardApi.summary })
 
   if (isLoading) return <Spinner />
@@ -76,11 +79,17 @@ export function DashboardSummary({ title, complaintsBasePath }) {
           { key: 'warning', label: 'Pending 3–7 days', value: data.complaints.aging?.warning ?? 0, cls: 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-400' },
           { key: 'danger', label: 'Pending 7+ days', value: data.complaints.aging?.danger ?? 0, cls: 'border-red-300 bg-red-50 text-red-700 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-400' },
         ].map((tile) => (
-          <div key={tile.key} className={`rounded-xl border p-4 ${tile.cls}`}>
+          <button
+            key={tile.key}
+            type="button"
+            onClick={() => setAgingBucket(tile.key)}
+            aria-haspopup="dialog"
+            className={`rounded-xl border p-4 text-left transition hover:shadow-md focus-visible:outline-2 ${tile.cls}`}
+          >
             <p className="text-xs font-medium uppercase tracking-wide">{tile.label}</p>
             <p className="mt-1.5 text-2xl font-bold">{tile.value}</p>
             <p className="mt-1 text-xs opacity-80">in the same status</p>
-          </div>
+          </button>
         ))}
         <StatTile
           label="Avg resolution time"
@@ -149,6 +158,10 @@ export function DashboardSummary({ title, complaintsBasePath }) {
           rows={data.recentComplaints}
         />
       </Card>
+
+      {agingBucket && (
+        <AgingDetailModal bucket={agingBucket} basePath={complaintsBasePath} onClose={() => setAgingBucket(null)} />
+      )}
     </div>
   )
 }
