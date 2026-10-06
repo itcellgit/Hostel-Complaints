@@ -2,7 +2,7 @@ import { Alert, Image, Pressable, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { useAuth } from '../auth/AuthContext'
-import { useNotificationLog, unreadCount } from '../push/notificationLog'
+import { useNotifications } from '../hooks/useNotifications'
 
 export const LOGO = require('../../assets/logo.jpg')
 
@@ -18,8 +18,7 @@ export function HeaderTitle({ label = 'KLS Hostel' }) {
 
 export function HeaderBell() {
   const router = useRouter()
-  const list = useNotificationLog()
-  const unread = unreadCount(list)
+  const { unreadCount: unread } = useNotifications()
   return (
     <Pressable hitSlop={12} className="px-2" onPress={() => router.push('/notifications')}>
       <Ionicons name="notifications-outline" size={22} color="#fff" />

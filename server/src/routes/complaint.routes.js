@@ -13,6 +13,8 @@ import { nextComplaintNo } from '../utils/complaintNo.js'
 import { feeSummaryForStudent } from '../services/feeSummary.js'
 import { CELL_ROLES, DEPARTMENT_BY_CELL_ROLE } from '../utils/cellRoles.js'
 import { sendPushToUsers } from '../services/push.js'
+import { createNotifications } from '../services/notifications.js'
+import { sendComplaintClosedEmail, sendMaintainerAssignmentEmail } from '../services/complaintEmails.js'
 
 export const complaintRouter = Router()
 complaintRouter.use(requireAuth)
@@ -46,8 +48,8 @@ const complaintInclude = {
       program: { select: { name: true, code: true } },
     },
   },
-  assignedTo: { select: { id: true, loginId: true, role: true, department: true, phoneNumber: true } },
-  maintainer: { select: { id: true, loginId: true, role: true, department: true, phoneNumber: true } },
+  assignedTo: { select: { id: true, loginId: true, name: true, role: true, department: true, phoneNumber: true } },
+  maintainer: { select: { id: true, loginId: true, name: true, role: true, department: true, phoneNumber: true } },
   closedByUser: { select: { id: true, loginId: true, role: true } },
 }
 
@@ -292,7 +294,7 @@ complaintRouter.get(
     const maintainers = await prisma.user.findMany({
       where: { role: 'MAINTAINER', isActive: true, department: DEPARTMENT_BY_CELL_ROLE[req.user.role] },
       orderBy: { loginId: 'asc' },
-      select: { id: true, loginId: true, department: true, phoneNumber: true },
+      select: { id: true, loginId: true, name: true, department: true, phoneNumber: true },
     })
     res.json({ maintainers })
   }),
@@ -398,6 +400,20 @@ complaintRouter.post(
       complaint,
       `Complaint ${complaint.complaintNo} forwarded`,
       `Now with ${role.replace(/_/g, ' ')}`,
+    )
+
+    // "Raised further": tell the new handler, the student and the hostel's Dean Infra.
+    const hostelDeans = await prisma.deanInfraHostel.findMany({
+      where: { hostelId: complaint.hostelId },
+      select: { userId: true },
+    })
+    createNotifications(
+      [target.id, await complainantUserId(complaint), ...hostelDeans.map((d) => d.userId)].filter((id) => id !== req.user.id),
+      {
+        title: `Complaint ${complaint.complaintNo} raised further`,
+        body: `Forwarded to ${DEPARTMENT_BY_CELL_ROLE[role] ?? role}${comment ? `: ${comment}` : ''}`,
+        complaintId: complaint.id,
+      },
     )
 
     res.json({ complaint: await withFeeSummary(updated) })
@@ -619,6 +635,7 @@ complaintRouter.post(
       `Update on ${complaint.complaintNo}`,
       `Assigned to ${maintainer.loginId}`,
     )
+    sendMaintainerAssignmentEmail({ maintainer, complaint: updated, assignedBy: req.user, note: comment })
 
     res.json({ complaint: await withFeeSummary(updated) })
   }),
@@ -726,6 +743,7 @@ complaintRouter.post(
       `Complaint ${complaint.complaintNo} closed`,
       comment || 'The complaint has been closed.',
     )
+    sendComplaintClosedEmail({ complaint: updated, closedBy: req.user })
 
     res.json({ complaint: await withFeeSummary(updated) })
   }),

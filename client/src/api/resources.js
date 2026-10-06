@@ -111,6 +111,12 @@ export const usersApi = {
   resetPassword: (id) => api.post(`/users/${id}/reset-password`).then((r) => r.data.tempPassword),
 }
 
+export const notificationsApi = {
+  list: () => api.get('/notifications').then((r) => r.data),
+  markRead: (id) => api.post(`/notifications/${id}/read`),
+  markAllRead: () => api.post('/notifications/read-all'),
+}
+
 export const dashboardApi = {
   summary: () => api.get('/dashboard/summary').then((r) => r.data),
   hostel: (id) => api.get(`/dashboard/hostel/${id}`).then((r) => r.data),

@@ -9,6 +9,7 @@ import { useCrud } from '../../../src/hooks/useCrud'
 import { Screen, Card, Row, Button, Field, Loader, ErrorNote } from '../../../src/components/ui'
 import { SelectField } from '../../../src/components/form'
 import { FormSheet } from '../../../src/components/FormSheet'
+import { ImpersonateButton } from '../../../src/components/Impersonation'
 import { formatCurrency, formatDate } from '../../../src/lib/format'
 
 export default function StudentDetail() {
@@ -61,6 +62,12 @@ export default function StudentDetail() {
       {canManage ? (
         <View className="gap-3">
           <Button title="Edit details" variant="secondary" onPress={() => router.push({ pathname: '/student-form', params: { id } })} />
+          <ImpersonateButton
+            userId={student.userId}
+            label={`${student.firstName} ${student.lastName ?? ''}`.trim()}
+            disabled={!student.isActive}
+            disabledReason="Student is marked as left."
+          />
           <View className="flex-row gap-3">
             <Button
               title={student.isActive ? 'Mark as left' : 'Reactivate'}

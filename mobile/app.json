@@ -51,7 +51,7 @@
       "@react-native-community/datetimepicker"
     ],
     "extra": {
-      "apiUrl": "https://hostel-complaints.git.edu",
+      "apiUrl": "http://10.22.0.151:4000",
       "router": {},
       "eas": {
         "projectId": "412d93ab-cd75-4a59-9c47-83df079958c6"

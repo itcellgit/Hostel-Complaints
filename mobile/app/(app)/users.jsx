@@ -9,9 +9,11 @@ import { useCrud } from '../../src/hooks/useCrud'
 import { Loader, EmptyState, ErrorNote, Field, Button } from '../../src/components/ui'
 import { SelectField, MultiSelectField } from '../../src/components/form'
 import { FormSheet } from '../../src/components/FormSheet'
-import { ROLE_LABEL, CELL_ROLES } from '../../src/lib/roles'
+import { ImpersonateButton } from '../../src/components/Impersonation'
+import { ROLE_LABEL, CELL_ROLES, DEPARTMENTS } from '../../src/lib/roles'
 
-const OFFICE_ROLES = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES]
+const OFFICE_ROLES = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', ...CELL_ROLES, 'MAINTAINER']
+const DEPARTMENT_OPTIONS = DEPARTMENTS.map((d) => ({ label: d, value: d }))
 
 export default function AdminUsers() {
   const [sheet, setSheet] = useState(null)
@@ -56,8 +58,13 @@ export default function AdminUsers() {
           <View className="bg-white rounded-2xl p-4 border border-slate-200">
             <View className="flex-row justify-between items-start">
               <View className="flex-1">
-                <Text className="font-semibold text-slate-900">{item.loginId}</Text>
-                <Text className="text-slate-500 text-sm">{ROLE_LABEL[item.role] ?? item.role}</Text>
+                <Text className="font-semibold text-slate-900">{item.name || item.loginId}</Text>
+                {item.name ? <Text className="text-slate-500 text-sm">{item.loginId}</Text> : null}
+                <Text className="text-slate-500 text-sm">
+                  {ROLE_LABEL[item.role] ?? item.role}
+                  {item.department ? ` · ${item.department}` : ''}
+                </Text>
+                {item.phoneNumber ? <Text className="text-slate-500 text-sm">{item.phoneNumber}</Text> : null}
                 {!item.isActive ? <Text className="text-red-600 text-xs mt-0.5">Inactive</Text> : null}
                 {item.passwordResetRequestedAt ? (
                   <Text className="text-amber-600 text-xs mt-0.5">Password reset requested</Text>
@@ -92,6 +99,13 @@ export default function AdminUsers() {
                 </Text>
               </Pressable>
             </View>
+            <ImpersonateButton
+              userId={item.id}
+              label={item.name || item.loginId}
+              className="mt-3"
+              disabled={item.role === 'ADMIN' || !item.isActive}
+              disabledReason={item.role === 'ADMIN' ? 'Cannot impersonate another Admin.' : 'This account is disabled.'}
+            />
           </View>
         )}
       />
@@ -126,6 +140,9 @@ export default function AdminUsers() {
 function UserSheet({ item, collegeOptions, hostelOptions, onClose, onCreate, onUpdate, saving }) {
   const isEdit = !!item?.id
   const [loginId, setLoginId] = useState('')
+  const [name, setName] = useState('')
+  const [department, setDepartment] = useState(null)
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [role, setRole] = useState('ADMIN')
   const [principalCollegeId, setPrincipalCollegeId] = useState(null)
   const [hostelIds, setHostelIds] = useState([])
@@ -137,9 +154,12 @@ function UserSheet({ item, collegeOptions, hostelOptions, onClose, onCreate, onU
       onClose={onClose}
       onOpen={() => {
         setLoginId(item?.loginId ?? '')
+        setName(item?.name ?? '')
+        setDepartment(item?.department ?? null)
+        setPhoneNumber(item?.phoneNumber ?? '')
         setRole(item?.role ?? 'ADMIN')
-        setPrincipalCollegeId(item?.principalCollegeId ?? null)
-        setHostelIds([])
+        setPrincipalCollegeId(item?.principalCollege?.id ?? null)
+        setHostelIds((item?.deanInfraHostels ?? []).map((l) => l.hostel.id))
       }}
     >
       <Field
@@ -149,6 +169,7 @@ function UserSheet({ item, collegeOptions, hostelOptions, onClose, onCreate, onU
         autoCapitalize="none"
         keyboardType="email-address"
       />
+      <Field label="Name (optional)" value={name} onChangeText={setName} placeholder="Full name" />
       {!isEdit ? (
         <SelectField
           label="Role"
@@ -159,6 +180,21 @@ function UserSheet({ item, collegeOptions, hostelOptions, onClose, onCreate, onU
       ) : (
         <Text className="text-slate-500 text-sm">Role: {ROLE_LABEL[item.role] ?? item.role} (can't change)</Text>
       )}
+
+      <SelectField
+        label={(isEdit ? item.role : role) === 'MAINTAINER' ? 'Department (required for Maintainer)' : 'Department'}
+        value={department}
+        onChange={setDepartment}
+        placeholder="Select a department…"
+        options={DEPARTMENT_OPTIONS}
+      />
+      <Field
+        label="Phone number"
+        value={phoneNumber}
+        onChangeText={setPhoneNumber}
+        keyboardType="phone-pad"
+        placeholder="Enter phone number"
+      />
 
       {role === 'PRINCIPAL' ? (
         <SelectField
@@ -180,6 +216,9 @@ function UserSheet({ item, collegeOptions, hostelOptions, onClose, onCreate, onU
           if (isEdit) {
             onUpdate({
               loginId: loginId.trim(),
+              name: name.trim() || undefined,
+              department: department || undefined,
+              phoneNumber: phoneNumber.trim() || undefined,
               principalCollegeId: item.role === 'PRINCIPAL' ? principalCollegeId : undefined,
               hostelIds: item.role === 'DEAN_INFRA' && hostelIds.length ? hostelIds : undefined,
             })
@@ -187,9 +226,13 @@ function UserSheet({ item, collegeOptions, hostelOptions, onClose, onCreate, onU
           }
           if (role === 'PRINCIPAL' && !principalCollegeId) return Alert.alert('Pick a college')
           if (role === 'DEAN_INFRA' && hostelIds.length === 0) return Alert.alert('Pick at least one hostel')
+          if (role === 'MAINTAINER' && !department) return Alert.alert('Pick a department for the Maintainer')
           onCreate({
             loginId: loginId.trim(),
             role,
+            name: name.trim() || undefined,
+            department: department || undefined,
+            phoneNumber: phoneNumber.trim() || undefined,
             principalCollegeId: role === 'PRINCIPAL' ? principalCollegeId : undefined,
             hostelIds: role === 'DEAN_INFRA' ? hostelIds : undefined,
           })

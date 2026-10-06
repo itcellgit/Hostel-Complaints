@@ -8,7 +8,7 @@ import { useAuth } from '../../../src/auth/AuthContext'
 import { Screen, Card, Loader, ErrorNote, Row, Button } from '../../../src/components/ui'
 import { ComplaintCard } from '../../../src/components/ComplaintCard'
 import { STATUS_LABEL, STATUS_COLOR, ROLE_LABEL } from '../../../src/lib/roles'
-import { formatCurrency } from '../../../src/lib/format'
+import { formatCurrency, formatDuration } from '../../../src/lib/format'
 import { HBars, VBars } from '../../../src/components/MiniBars'
 
 function Stat({ label, value }) {
@@ -131,6 +131,45 @@ function StudentDashboard({ data, router }) {
   )
 }
 
+const AGING = [
+  { key: 'neutral', label: '0–3 days', bg: '#f1f5f9', border: '#e2e8f0', fg: '#334155' },
+  { key: 'warning', label: '3–7 days', bg: '#fffbeb', border: '#fcd34d', fg: '#b45309' },
+  { key: 'danger', label: '7+ days', bg: '#fef2f2', border: '#fca5a5', fg: '#b91c1c' },
+]
+
+// Pending complaints by time in the same status, plus average resolution time.
+function AgingTiles({ complaints }) {
+  const aging = complaints?.aging ?? {}
+  const resolution = complaints?.resolution
+  return (
+    <>
+      <Text className="font-semibold text-slate-900 mt-1">Pending, by time in same status</Text>
+      <View className="flex-row gap-3">
+        {AGING.map((t) => (
+          <View
+            key={t.key}
+            className="flex-1 rounded-2xl p-3 border"
+            style={{ backgroundColor: t.bg, borderColor: t.border }}
+          >
+            <Text className="text-2xl font-bold" style={{ color: t.fg }}>
+              {aging[t.key] ?? 0}
+            </Text>
+            <Text className="text-xs mt-1" style={{ color: t.fg }}>
+              {t.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+      <Card>
+        <Text className="text-2xl font-bold text-slate-900">{formatDuration(resolution?.avgMs)}</Text>
+        <Text className="text-xs text-slate-500 mt-1">
+          Avg resolution time · across {resolution?.count ?? 0} resolved complaints
+        </Text>
+      </Card>
+    </>
+  )
+}
+
 function OfficerDashboard({ data }) {
   if (!data) return null
   const byStatus = data.complaints?.byStatus ?? {}
@@ -144,6 +183,7 @@ function OfficerDashboard({ data }) {
         <Stat label="Complaints (total)" value={data.complaints?.total ?? 0} />
         <Stat label="Last 30 days" value={data.complaints?.last30Days ?? 0} />
       </View>
+      <AgingTiles complaints={data.complaints} />
       <Card>
         <Text className="font-semibold text-slate-900 mb-3">By status</Text>
         <HBars

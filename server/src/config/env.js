@@ -22,4 +22,12 @@ export const env = {
   jwtRefreshSecret: required('JWT_REFRESH_SECRET'),
   jwtAccessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN || '1h',
   jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  // Email is optional: with no SMTP_HOST set, emails are skipped (logged only).
+  smtp: {
+    host: process.env.SMTP_HOST || '',
+    port: Number(process.env.SMTP_PORT || 587),
+    user: process.env.SMTP_USER || '',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.MAIL_FROM || process.env.SMTP_USER || 'no-reply@localhost',
+  },
 }

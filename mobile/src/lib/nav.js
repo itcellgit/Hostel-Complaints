@@ -3,7 +3,7 @@
 // but still reachable by direct navigation if the API allows it.
 import { CELL_ROLES } from './roles'
 
-const ALL = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', 'RECTOR', 'FACULTY', 'STUDENT', ...CELL_ROLES]
+const ALL = ['ADMIN', 'PRINCIPAL', 'REGISTRAR', 'DEAN_INFRA', 'RECTOR', 'FACULTY', 'STUDENT', ...CELL_ROLES, 'MAINTAINER']
 
 export const TABS = [
   {
@@ -16,7 +16,19 @@ export const TABS = [
     name: 'complaints',
     title: 'Complaints',
     icon: 'alert-circle-outline',
-    roles: ALL,
+    roles: ALL.filter((r) => r !== 'MAINTAINER'),
+  },
+  {
+    name: 'tasks',
+    title: 'Tasks',
+    icon: 'checkbox-outline',
+    roles: ['MAINTAINER'],
+  },
+  {
+    name: 'activity',
+    title: 'Activity',
+    icon: 'time-outline',
+    roles: ['DEAN_INFRA'],
   },
   {
     name: 'students',

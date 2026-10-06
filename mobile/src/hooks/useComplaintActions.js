@@ -29,5 +29,9 @@ export function useComplaintActions(id) {
         complaintsApi.setStatus(id, { status, resolutionRemarks }, file),
       onSuccess: invalidate,
     }),
+    assignMaintainer: useMutation({
+      mutationFn: ({ maintainerId, comment }) => complaintsApi.assignMaintainer(id, { maintainerId, comment }),
+      onSuccess: invalidate,
+    }),
   }
 }

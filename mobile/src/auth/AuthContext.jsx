@@ -48,8 +48,10 @@ export function AuthProvider({ children }) {
   // Register this device for push whenever we have an authenticated session
   // (fresh login or restored on cold start). Safe no-op where push isn't
   // available (Expo Go on Android, simulators, denied permission).
+  // Never while impersonating — that would move this device's push token to
+  // the impersonated account and the Admin would get their notifications.
   useEffect(() => {
-    if (user && !user.mustChangePassword) registerForPush()
+    if (user && !user.mustChangePassword && !user.impersonatedBy) registerForPush()
   }, [user])
 
   const login = useCallback(async (loginId, password) => {
@@ -70,6 +72,25 @@ export function AuthProvider({ children }) {
     return u
   }, [])
 
+  const impersonate = useCallback(async (userId) => {
+    // Detach the Admin's push token first, while still authenticated as them.
+    await unregisterPush()
+    try {
+      const u = normalizeUser(await authApi.impersonate(userId))
+      setUser(u)
+      return u
+    } catch (err) {
+      registerForPush()
+      throw err
+    }
+  }, [])
+
+  const stopImpersonation = useCallback(async () => {
+    const u = normalizeUser(await authApi.stopImpersonation())
+    setUser(u)
+    return u
+  }, [])
+
   const refreshMe = useCallback(async () => {
     const u = normalizeUser(await authApi.fetchMe())
     setUser(u)
@@ -77,8 +98,8 @@ export function AuthProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, bootstrapping, login, logout, changePassword, refreshMe }),
-    [user, bootstrapping, login, logout, changePassword, refreshMe],
+    () => ({ user, bootstrapping, login, logout, changePassword, refreshMe, impersonate, stopImpersonation }),
+    [user, bootstrapping, login, logout, changePassword, refreshMe, impersonate, stopImpersonation],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

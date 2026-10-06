@@ -17,7 +17,7 @@ import { ROLE_LABEL } from '../../lib/roles.js'
 const DEPARTMENT_OPTIONS = ['EPMC', 'Maintenance Cell', 'Production Center', 'Energy Cell', 'Computer Center']
 
 function createEmptyForm() {
-  return { loginId: '', role: 'ADMIN', department: '', phoneNumber: '', principalCollegeId: '', hostelIds: [] }
+  return { loginId: '', name: '', role: 'ADMIN', department: '', phoneNumber: '', principalCollegeId: '', hostelIds: [] }
 }
 
 const PAGE_SIZE = 20
@@ -81,6 +81,7 @@ export default function AdminUsersPage() {
     setEditingUser(user)
     setEditForm({
       loginId: user.loginId,
+      name: user.name ?? '',
       department: user.department ?? '',
       phoneNumber: user.phoneNumber ?? '',
       principalCollegeId: user.principalCollege?.id ?? '',
@@ -142,6 +143,7 @@ export default function AdminUsersPage() {
             emptyMessage={q ? 'No users match your search.' : 'No users yet.'}
             columns={[
               { key: 'loginId', header: 'Login ID' },
+              { key: 'name', header: 'Name', render: (r) => r.name ?? '—' },
               { key: 'department', header: 'Department', render: (r) => r.department ?? '—' },
               { key: 'phoneNumber', header: 'Phone Number', render: (r) => r.phoneNumber ?? '—' },
               { key: 'role', header: 'Role', render: (r) => ROLE_LABEL[r.role] ?? r.role },
@@ -231,6 +233,9 @@ export default function AdminUsersPage() {
             <FormField label="Login email">
               <Input type="email" value={form.loginId} onChange={(e) => setForm({ ...form, loginId: e.target.value })} required />
             </FormField>
+            <FormField label="Name (optional)">
+              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" />
+            </FormField>
             <FormField label={form.role === 'MAINTAINER' ? 'Department (required for Maintainer)' : 'Department'}>
               <Select
                 value={form.department}
@@ -310,6 +315,9 @@ export default function AdminUsersPage() {
                 onChange={(e) => setEditForm({ ...editForm, loginId: e.target.value })}
                 required
               />
+            </FormField>
+            <FormField label="Name (optional)">
+              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} placeholder="Full name" />
             </FormField>
             <FormField label="Department">
               <Select value={editForm.department} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}>

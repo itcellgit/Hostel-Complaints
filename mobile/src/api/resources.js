@@ -94,6 +94,13 @@ export const complaintsApi = {
   setEta: (id, data) => api.patch(`/complaints/${id}/eta`, data).then((r) => r.data.complaint),
   close: (id, comment) => api.post(`/complaints/${id}/close`, { comment }).then((r) => r.data.complaint),
   comment: (id, comment) => api.post(`/complaints/${id}/comments`, { comment }).then((r) => r.data.activity),
+  maintainers: () => api.get('/complaints/maintainers').then((r) => r.data.maintainers),
+  assignMaintainer: (id, data) => api.post(`/complaints/${id}/assign-maintainer`, data).then((r) => r.data.complaint),
+  maintainerComplete: (id, remarks, file) =>
+    api
+      .post(`/complaints/${id}/maintainer-complete`, buildForm({ remarks: remarks || undefined }, 'proofImage', file))
+      .then((r) => r.data.complaint),
+  auditTrail: (params) => api.get('/complaints/audit-trail', { params }).then((r) => r.data),
 }
 
 export const usersApi = {
@@ -101,6 +108,12 @@ export const usersApi = {
   create: (data) => api.post('/users', data).then((r) => r.data),
   update: (id, data) => api.patch(`/users/${id}`, data).then((r) => r.data.user),
   resetPassword: (id) => api.post(`/users/${id}/reset-password`).then((r) => r.data.tempPassword),
+}
+
+export const notificationsApi = {
+  list: () => api.get('/notifications').then((r) => r.data),
+  markRead: (id) => api.post(`/notifications/${id}/read`),
+  markAllRead: () => api.post('/notifications/read-all'),
 }
 
 export const dashboardApi = {

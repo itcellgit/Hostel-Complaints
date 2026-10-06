@@ -52,7 +52,8 @@ async function displayNameFor(user) {
     })
     return s ? `${s.firstName} ${s.lastName ?? ''}`.trim() : user.loginId
   }
-  return user.loginId
+  const account = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true } })
+  return account?.name || user.loginId
 }
 
 const loginSchema = z.object({

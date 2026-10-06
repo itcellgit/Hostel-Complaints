@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useRouter } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Ionicons } from '@expo/vector-icons'
 import { complaintsApi } from '../../../src/api/resources'
@@ -35,6 +35,14 @@ export default function ComplaintsTab() {
       last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined,
     initialPageParam: 1,
   })
+
+  // Tabs stay mounted, so without this a newly forwarded complaint only shows after a manual pull-to-refresh.
+  const { refetch } = query
+  useFocusEffect(
+    useCallback(() => {
+      refetch()
+    }, [refetch]),
+  )
 
   const items = useMemo(() => query.data?.pages.flatMap((p) => p.complaints) ?? [], [query.data])
   const total = query.data?.pages[0]?.pagination.total ?? 0

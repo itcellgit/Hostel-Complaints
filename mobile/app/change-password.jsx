@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router'
 import { useAuth } from '../src/auth/AuthContext'
 import { apiErrorMessage } from '../src/api/client'
 import { Button, Field, ErrorNote, FormScroll } from '../src/components/ui'
+import { homeFor } from '../src/lib/roles'
 
 export default function ChangePasswordScreen() {
   const { changePassword, logout, user } = useAuth()
@@ -24,7 +25,7 @@ export default function ChangePasswordScreen() {
     setBusy(true)
     try {
       await changePassword(current, next)
-      router.replace('/dashboard')
+      router.replace(homeFor(user?.role))
     } catch (err) {
       setError(apiErrorMessage(err))
     } finally {
@@ -53,7 +54,7 @@ export default function ChangePasswordScreen() {
         {forced ? (
           <Button title="Sign out" variant="ghost" onPress={logout} />
         ) : (
-          <Button title="Cancel" variant="ghost" onPress={() => router.replace('/dashboard')} />
+          <Button title="Cancel" variant="ghost" onPress={() => router.replace(homeFor(user?.role))} />
         )}
       </FormScroll>
     </SafeAreaView>

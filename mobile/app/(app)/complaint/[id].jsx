@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { Alert, Image, Text, View } from 'react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
-import * as ImagePicker from 'expo-image-picker'
 import { complaintsApi } from '../../../src/api/resources'
 import { apiErrorMessage } from '../../../src/api/client'
 import { useAuth } from '../../../src/auth/AuthContext'
 import { useComplaintActions } from '../../../src/hooks/useComplaintActions'
 import { SelectField } from '../../../src/components/form'
 import { DateTimeField } from '../../../src/components/DateTimeField'
+import { ComplaintTimeline } from '../../../src/components/ComplaintTimeline'
+import { MaintainerCompleteSheet, pickPhoto } from '../../../src/components/MaintainerCompleteSheet'
 import {
   Screen,
   Card,
@@ -19,15 +20,27 @@ import {
   ErrorNote,
   StatusBadge,
   CategoryBadge,
+  UrgencyBadge,
 } from '../../../src/components/ui'
 import { CELL_ROLES, ROLE_LABEL } from '../../../src/lib/roles'
-import { formatDate, formatDateTime } from '../../../src/lib/format'
+import { currentHandler, handlerText } from '../../../src/lib/complaint'
+import { formatDate, formatDateTime, resolutionTime } from '../../../src/lib/format'
 import { fileUrl } from '../../../src/config'
+
+function Photo({ title, path }) {
+  return (
+    <Card>
+      <Text className="font-semibold text-slate-900 mb-2">{title}</Text>
+      <Image source={{ uri: fileUrl(path) }} className="w-full h-48 rounded-xl" resizeMode="cover" />
+    </Card>
+  )
+}
 
 export default function ComplaintDetail() {
   const { id } = useLocalSearchParams()
   const { user } = useAuth()
   const actions = useComplaintActions(id)
+  const [completing, setCompleting] = useState(false)
 
   const query = useQuery({
     queryKey: ['complaint', id],
@@ -45,16 +58,19 @@ export default function ComplaintDetail() {
   const { complaint, activities } = query.data
   const mine = user?.role === 'STUDENT' && complaint.studentId === user?.studentId
   const assignedToMe = complaint.assignedTo?.id === user?.id
+  const handler = currentHandler(complaint)
+  const resolvedIn = resolutionTime(complaint)
 
   return (
     <Screen refreshing={query.isRefetching} onRefresh={query.refetch}>
       <Card>
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center justify-between gap-2">
           <Text className="text-lg font-bold text-slate-900">{complaint.complaintNo}</Text>
-          <StatusBadge status={complaint.status} />
+          <StatusBadge status={complaint.status} assigneeRole={complaint.assignedTo?.role} />
         </View>
-        <View className="flex-row gap-2 mt-2">
+        <View className="flex-row flex-wrap gap-2 mt-2">
           <CategoryBadge category={complaint.category} />
+          <UrgencyBadge status={complaint.status} since={complaint.statusChangedAt} />
         </View>
         <Text className="text-slate-700 mt-3">{complaint.description}</Text>
       </Card>
@@ -71,18 +87,14 @@ export default function ComplaintDetail() {
         />
         <Row label="Room" value={complaint.roomNo || complaint.student?.roomNo} />
         <Row label="Filed by" value={`${complaint.complainerName} · ${complaint.complainerPhone}`} />
-        <Row label="Filed on" value={formatDate(complaint.createdAt)} />
-        <Row
-          label="Assigned to"
-          value={
-            complaint.assignedTo
-              ? `${ROLE_LABEL[complaint.assignedTo.role] ?? complaint.assignedTo.role}`
-              : '—'
-          }
-        />
+        <Row label="Filed on" value={formatDateTime(complaint.createdAt)} />
+        {handler ? <Row label="Currently with" value={handlerText(handler)} /> : null}
         {complaint.estimatedCompletionAt ? (
-          <Row label="ETA" value={formatDateTime(complaint.estimatedCompletionAt)} />
+          <Row label="Est. completion" value={formatDateTime(complaint.estimatedCompletionAt)} />
         ) : null}
+        {complaint.resolvedAt ? <Row label="Resolved on" value={formatDateTime(complaint.resolvedAt)} /> : null}
+        {resolvedIn ? <Row label="Resolution time" value={resolvedIn} /> : null}
+        {complaint.closedAt ? <Row label="Closed on" value={formatDate(complaint.closedAt)} /> : null}
       </Card>
 
       {complaint.feeSummary ? (
@@ -93,10 +105,12 @@ export default function ComplaintDetail() {
         </Card>
       ) : null}
 
-      {complaint.resolutionRemarks ? (
+      {complaint.attachmentPath ? <Photo title="Attached photo" path={complaint.attachmentPath} /> : null}
+
+      {complaint.resolutionRemarks || complaint.resolutionImagePath ? (
         <Card>
           <Text className="font-semibold text-slate-900 mb-1">Resolution</Text>
-          <Text className="text-slate-700">{complaint.resolutionRemarks}</Text>
+          {complaint.resolutionRemarks ? <Text className="text-slate-700">{complaint.resolutionRemarks}</Text> : null}
           {complaint.resolutionImagePath ? (
             <Image
               source={{ uri: fileUrl(complaint.resolutionImagePath) }}
@@ -107,14 +121,14 @@ export default function ComplaintDetail() {
         </Card>
       ) : null}
 
-      {complaint.attachmentPath ? (
+      {complaint.maintainerProofPath ? (
+        <Photo title="Maintainer's proof of completion" path={complaint.maintainerProofPath} />
+      ) : null}
+
+      {complaint.closingComment ? (
         <Card>
-          <Text className="font-semibold text-slate-900 mb-1">Attachment</Text>
-          <Image
-            source={{ uri: fileUrl(complaint.attachmentPath) }}
-            className="w-full h-48 rounded-xl"
-            resizeMode="cover"
-          />
+          <Text className="font-semibold text-slate-900 mb-1">Closing comment</Text>
+          <Text className="text-slate-700">{complaint.closingComment}</Text>
         </Card>
       ) : null}
 
@@ -124,39 +138,39 @@ export default function ComplaintDetail() {
         mine={mine}
         assignedToMe={assignedToMe}
         actions={actions}
+        onMaintainerComplete={() => setCompleting(true)}
       />
 
-      <Text className="font-semibold text-slate-900 mt-2">Activity</Text>
-      {activities.map((a) => (
-        <View key={a.id} className="bg-white rounded-xl p-3 border border-slate-200">
-          <Text className="text-xs text-slate-400">
-            {formatDateTime(a.createdAt)} · {ROLE_LABEL[a.user?.role] ?? a.user?.role}
-          </Text>
-          <Text className="text-slate-700 mt-1">
-            {a.action === 'STATUS_CHANGE'
-              ? `${a.fromStatus ?? '—'} → ${a.toStatus}`
-              : a.action === 'ETA_UPDATE'
-                ? 'ETA updated'
-                : 'Comment'}
-            {a.comment ? `: ${a.comment}` : ''}
-          </Text>
-        </View>
-      ))}
+      <Card>
+        <Text className="font-semibold text-slate-900 mb-3">Activity</Text>
+        <ComplaintTimeline activities={activities} />
+      </Card>
+
+      <MaintainerCompleteSheet complaint={completing ? complaint : null} onClose={() => setCompleting(false)} />
     </Screen>
   )
 }
 
-function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
+function ActionPanel({ complaint, user, mine, assignedToMe, actions, onMaintainerComplete }) {
   const role = user?.role
   const [comment, setComment] = useState('')
   const [remarks, setRemarks] = useState('')
+  const [rejectReason, setRejectReason] = useState('')
   const [eta, setEta] = useState(null)
   const [photo, setPhoto] = useState(null)
   const [forwardRole, setForwardRole] = useState(null)
+  const [maintainerId, setMaintainerId] = useState(null)
+  const [assignNote, setAssignNote] = useState('')
   const isCell = CELL_ROLES.includes(role)
+  const status = complaint.status
 
-  const canComment = ['DEAN_INFRA', 'FACULTY', 'RECTOR', 'STUDENT', ...CELL_ROLES].includes(role) &&
-    (role !== 'STUDENT' || mine)
+  // Only a facility cell assigns work, and only to its own department's maintainers.
+  const maintainersQ = useQuery({
+    queryKey: ['maintainers'],
+    queryFn: complaintsApi.maintainers,
+    enabled: isCell,
+  })
+  const maintainers = maintainersQ.data ?? []
 
   function run(mutation, payload, okMsg) {
     mutation.mutate(payload, {
@@ -164,38 +178,69 @@ function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
       onSuccess: () => {
         setComment('')
         setRemarks('')
+        setRejectReason('')
         setEta(null)
         setPhoto(null)
         setForwardRole(null)
+        setMaintainerId(null)
+        setAssignNote('')
         if (okMsg) Alert.alert('Done', okMsg)
       },
     })
   }
 
-  async function pickPhoto() {
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6 })
-    if (!res.canceled) setPhoto(res.assets[0])
-  }
+  // Same rules as client/src/pages/complaints/ComplaintDetailPage.jsx.
+  const canComment = ['DEAN_INFRA', 'FACULTY', 'RECTOR', 'MAINTAINER', ...CELL_ROLES].includes(role) || mine
+  const canClose = status === 'RESOLVED' && (mine || role === 'FACULTY')
+  const canForward = assignedToMe && role === 'DEAN_INFRA' && status === 'OPEN'
+  const canWork = assignedToMe && (role === 'FACULTY' || isCell) && ['OPEN', 'IN_PROGRESS'].includes(status)
+  // Once a facility cell has committed to an ETA they've accepted the job.
+  const canReject =
+    assignedToMe && ['OPEN', 'IN_PROGRESS'].includes(status) && !(isCell && complaint.estimatedCompletionAt)
+  const canEta = isCell && assignedToMe && ['IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER'].includes(status)
+  const canAssignMaintainer =
+    isCell && assignedToMe && ['IN_PROGRESS', 'ASSIGNED_TO_MAINTAINER', 'MAINTAINER_COMPLETED'].includes(status)
+  const canVerify = isCell && assignedToMe && status === 'MAINTAINER_COMPLETED'
+  const canMaintainerComplete =
+    role === 'MAINTAINER' && complaint.maintainer?.id === user?.id && status === 'ASSIGNED_TO_MAINTAINER'
 
-  const showForward = role === 'DEAN_INFRA' && assignedToMe && complaint.status === 'OPEN'
-  const showReject =
-    assignedToMe &&
-    ((role === 'DEAN_INFRA' && complaint.status === 'OPEN') ||
-      ((role === 'FACULTY' || isCell) && complaint.status === 'IN_PROGRESS')) &&
-    !(isCell && complaint.estimatedCompletionAt)
-  const showEta = isCell && assignedToMe && complaint.status === 'IN_PROGRESS'
-  const showResolve =
-    assignedToMe && complaint.status === 'IN_PROGRESS' && (role === 'FACULTY' || isCell)
-  const showClose =
-    complaint.status === 'RESOLVED' && ((role === 'STUDENT' && mine) || role === 'FACULTY')
+  if (
+    !canComment && !canClose && !canForward && !canWork && !canReject && !canEta &&
+    !canAssignMaintainer && !canVerify && !canMaintainerComplete
+  )
+    return null
 
-  if (!canComment && !showForward && !showReject && !showEta && !showResolve && !showClose) return null
+  // Facility cells must set an ETA and attach a photo before resolving.
+  const resolveBlocker =
+    isCell && !complaint.estimatedCompletionAt
+      ? 'Set an estimated completion time first.'
+      : isCell && !photo
+        ? 'Attach a photo of the completed work.'
+        : null
 
   return (
     <Card className="gap-3">
       <Text className="font-semibold text-slate-900">Actions</Text>
 
-      {showForward ? (
+      {canMaintainerComplete ? (
+        <Button title="Mark as completed" icon="checkmark-circle-outline" onPress={onMaintainerComplete} />
+      ) : null}
+
+      {canVerify ? (
+        <Button
+          title="Verify & resolve"
+          icon="shield-checkmark-outline"
+          loading={actions.setStatus.isPending}
+          onPress={() =>
+            Alert.alert('Verify & resolve?', "The maintainer's proof photo becomes the resolution photo.", [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Resolve', onPress: () => run(actions.setStatus, { status: 'RESOLVED' }, 'Complaint resolved') },
+            ])
+          }
+        />
+      ) : null}
+
+      {canForward ? (
         <View className="gap-2">
           <SelectField
             label="Forward to facility cell"
@@ -221,8 +266,60 @@ function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
         </View>
       ) : null}
 
-      {showEta ? (
+      {canAssignMaintainer ? (
         <View className="gap-2">
+          <Text className="font-medium text-slate-800">
+            {status === 'MAINTAINER_COMPLETED' ? 'Send back for rework' : 'Assign to maintainer'}
+          </Text>
+          {complaint.maintainer ? (
+            <Text className="text-sm text-slate-600">Current maintainer: {handlerText(complaint.maintainer)}</Text>
+          ) : null}
+          <SelectField
+            label="Maintainer"
+            value={maintainerId}
+            onChange={setMaintainerId}
+            placeholder="Select a maintainer…"
+            options={maintainers.map((m) => ({
+              label: m.name ? `${m.name} — ${m.loginId}` : m.loginId,
+              value: m.id,
+            }))}
+          />
+          {maintainersQ.isSuccess && maintainers.length === 0 ? (
+            <Text className="text-xs text-amber-600">
+              No active maintainers are set up for your department yet — contact the Admin.
+            </Text>
+          ) : null}
+          <Field
+            label="Instructions (optional)"
+            placeholder="Anything the maintainer should know"
+            value={assignNote}
+            onChangeText={setAssignNote}
+            multiline
+          />
+          <Button
+            title={status === 'IN_PROGRESS' ? 'Assign' : 'Reassign'}
+            icon="construct-outline"
+            variant={canVerify ? 'secondary' : 'primary'}
+            loading={actions.assignMaintainer.isPending}
+            disabled={!maintainerId}
+            onPress={() =>
+              run(
+                actions.assignMaintainer,
+                { maintainerId, comment: assignNote.trim() || undefined },
+                'Maintainer assigned',
+              )
+            }
+          />
+        </View>
+      ) : null}
+
+      {canEta ? (
+        <View className="gap-2">
+          {complaint.estimatedCompletionAt ? (
+            <Text className="text-sm text-slate-600">
+              Current ETA: {formatDateTime(complaint.estimatedCompletionAt)}
+            </Text>
+          ) : null}
           <DateTimeField label="Estimated completion" value={eta} onChange={setEta} />
           <Field
             label="Note (optional)"
@@ -246,7 +343,25 @@ function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
         </View>
       ) : null}
 
-      {showResolve ? (
+      {canWork && status === 'OPEN' ? (
+        <View className="gap-2">
+          <Field label="Note (optional)" value={remarks} onChangeText={setRemarks} multiline />
+          <Button
+            title="Start working"
+            icon="play-circle-outline"
+            loading={actions.setStatus.isPending}
+            onPress={() =>
+              run(
+                actions.setStatus,
+                { status: 'IN_PROGRESS', resolutionRemarks: remarks.trim() || undefined },
+                'Marked in progress',
+              )
+            }
+          />
+        </View>
+      ) : null}
+
+      {canWork && status === 'IN_PROGRESS' ? (
         <View className="gap-2">
           <Field
             label="Resolution remarks"
@@ -256,20 +371,28 @@ function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
             multiline
           />
           {isCell ? (
-            <Button
-              title={photo ? 'Photo attached ✓' : 'Attach photo of completed work'}
-              variant="ghost"
-              icon="camera-outline"
-              onPress={pickPhoto}
-            />
+            <>
+              {photo ? <Image source={{ uri: photo.uri }} className="w-full h-40 rounded-xl" resizeMode="cover" /> : null}
+              <Button
+                title={photo ? 'Change photo' : 'Attach photo of completed work'}
+                variant="ghost"
+                icon="camera-outline"
+                onPress={async () => {
+                  const p = await pickPhoto('Photo of completed work')
+                  if (p) setPhoto(p)
+                }}
+              />
+            </>
           ) : null}
+          {resolveBlocker ? <Text className="text-xs text-amber-600">{resolveBlocker}</Text> : null}
           <Button
             title="Mark resolved"
             loading={actions.setStatus.isPending}
+            disabled={!!resolveBlocker}
             onPress={() =>
               run(
                 actions.setStatus,
-                { status: 'RESOLVED', resolutionRemarks: remarks, file: photo },
+                { status: 'RESOLVED', resolutionRemarks: remarks.trim() || undefined, file: photo },
                 'Marked resolved',
               )
             }
@@ -277,27 +400,28 @@ function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
         </View>
       ) : null}
 
-      {showReject ? (
+      {canReject ? (
         <View className="gap-2">
           <Field
             label="Reason for rejection"
             placeholder="Required"
-            value={remarks}
-            onChangeText={setRemarks}
+            value={rejectReason}
+            onChangeText={setRejectReason}
             multiline
           />
           <Button
             title="Reject complaint"
             variant="danger"
             loading={actions.setStatus.isPending}
+            disabled={!rejectReason.trim()}
             onPress={() =>
-              run(actions.setStatus, { status: 'REJECTED', resolutionRemarks: remarks }, 'Complaint rejected')
+              run(actions.setStatus, { status: 'REJECTED', resolutionRemarks: rejectReason.trim() }, 'Complaint rejected')
             }
           />
         </View>
       ) : null}
 
-      {showClose ? (
+      {canClose ? (
         <View className="gap-2">
           <Field
             label={role === 'FACULTY' ? 'Closing comment (required)' : 'Feedback (optional)'}
@@ -308,7 +432,8 @@ function ActionPanel({ complaint, user, mine, assignedToMe, actions }) {
           <Button
             title="Close complaint"
             loading={actions.close.isPending}
-            onPress={() => run(actions.close, comment, 'Complaint closed')}
+            disabled={role === 'FACULTY' && !comment.trim()}
+            onPress={() => run(actions.close, comment.trim() || undefined, 'Complaint closed')}
           />
         </View>
       ) : null}

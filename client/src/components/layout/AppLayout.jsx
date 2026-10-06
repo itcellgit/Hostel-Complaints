@@ -5,6 +5,7 @@ import { useAuth } from '../../context/authContext.js'
 import { NAV_BY_ROLE } from '../../lib/nav.js'
 import { ROLE_LABEL, homeFor } from '../../lib/roles.js'
 import klsLogo from '../../assets/kls-logo.jpg'
+import { NotificationBell } from './NotificationBell.jsx'
 
 function SidebarContent({ navItems }) {
   return (
@@ -135,6 +136,7 @@ export function AppLayout() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <NotificationBell />
             <Link
               to="/change-password"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50/60 hover:text-indigo-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-indigo-500/50 dark:hover:bg-slate-800 dark:hover:text-indigo-300"

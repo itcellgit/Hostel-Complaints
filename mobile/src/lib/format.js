@@ -28,3 +28,20 @@ export function formatDateTime(value) {
     minute: '2-digit',
   })
 }
+
+// "2d 4h", "5h 12m", "<1m" — two largest units, for elapsed-time displays.
+export function formatDuration(ms) {
+  if (ms == null || Number.isNaN(ms)) return '—'
+  const totalMinutes = Math.floor(Math.max(0, ms) / 60000)
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+  if (days > 0) return `${days}d ${hours}h`
+  if (hours > 0) return `${hours}h ${minutes}m`
+  return minutes > 0 ? `${minutes}m` : '<1m'
+}
+
+export function resolutionTime(complaint) {
+  if (!complaint?.resolvedAt) return null
+  return formatDuration(new Date(complaint.resolvedAt) - new Date(complaint.createdAt))
+}

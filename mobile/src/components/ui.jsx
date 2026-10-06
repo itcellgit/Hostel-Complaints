@@ -12,7 +12,8 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Ionicons } from '@expo/vector-icons'
-import { STATUS_COLOR, STATUS_LABEL, CATEGORY_COLOR, CATEGORY_LABEL } from '../lib/roles'
+import { STATUS_COLOR, CATEGORY_COLOR, CATEGORY_LABEL, statusLabelFor } from '../lib/roles'
+import { daysInStatus, isUrgencyTracked, urgencyLevel } from '../lib/complaint'
 
 // Scroll container that keeps inputs above the keyboard. iOS uses `padding`;
 // Android relies on adjustResize (Expo default) so the scroll area shrinks and
@@ -162,8 +163,25 @@ export function Pill({ text, color = '#64748b' }) {
   )
 }
 
-export function StatusBadge({ status }) {
-  return <Pill text={STATUS_LABEL[status] ?? status} color={STATUS_COLOR[status] ?? '#64748b'} />
+export function StatusBadge({ status, assigneeRole }) {
+  return <Pill text={statusLabelFor(status, assigneeRole)} color={STATUS_COLOR[status] ?? '#64748b'} />
+}
+
+const URGENCY_COLOR = { neutral: '#64748b', warning: '#d97706', danger: '#dc2626' }
+
+// Time in the current status: <3 days neutral, 3-7 amber, 7+ red (stagnant).
+export function UrgencyBadge({ status, since }) {
+  if (!since || !isUrgencyTracked(status)) return null
+  const days = daysInStatus(since)
+  const color = URGENCY_COLOR[urgencyLevel(days)]
+  return (
+    <View className="flex-row items-center gap-1 self-start rounded-full px-2.5 py-1" style={{ backgroundColor: `${color}1f` }}>
+      <Ionicons name="hourglass-outline" size={11} color={color} />
+      <Text className="text-xs font-semibold" style={{ color }}>
+        {days === 0 ? '<1 day' : `${days} day${days === 1 ? '' : 's'}`}
+      </Text>
+    </View>
+  )
 }
 
 export function CategoryBadge({ category }) {

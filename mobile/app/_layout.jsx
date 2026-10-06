@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from '../src/auth/AuthContext'
 import { Loader } from '../src/components/ui'
 import { ErrorBoundary } from '../src/components/ErrorBoundary'
 import { attachNotifications } from '../src/push/registerPush'
+import { homeFor } from '../src/lib/roles'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,7 +40,7 @@ function RootNavigator() {
       router.replace('/change-password')
     } else if (user && !user.mustChangePassword && segments[0] === 'login') {
       // already signed in, sitting on the login screen
-      router.replace('/dashboard')
+      router.replace(homeFor(user.role))
     }
     // NOTE: do NOT auto-redirect away from /change-password here — a signed-in
     // user opens it voluntarily from the More menu, and the screen navigates

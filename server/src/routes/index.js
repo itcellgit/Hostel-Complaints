@@ -10,6 +10,7 @@ import { dashboardRouter } from './dashboard.routes.js'
 import { hostelResidentRuleRouter } from './hostelResidentRule.routes.js'
 import { deviceRouter } from './device.routes.js'
 import { auditLogRouter } from './auditLog.routes.js'
+import { notificationRouter } from './notification.routes.js'
 
 export const router = Router()
 
@@ -27,3 +28,4 @@ router.use('/dashboard', dashboardRouter)
 router.use('/hostel-resident-rules', hostelResidentRuleRouter)
 router.use('/devices', deviceRouter)
 router.use('/audit-logs', auditLogRouter)
+router.use('/notifications', notificationRouter)

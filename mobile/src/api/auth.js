@@ -25,6 +25,18 @@ export async function forgotPassword(loginId) {
   await api.post('/auth/forgot-password', { loginId })
 }
 
+export async function impersonate(userId) {
+  const { data } = await api.post(`/auth/impersonate/${userId}`)
+  await saveTokens(data.tokens)
+  return data.user
+}
+
+export async function stopImpersonation() {
+  const { data } = await api.post('/auth/stop-impersonation')
+  await saveTokens(data.tokens)
+  return data.user
+}
+
 export async function logout() {
   try {
     await api.post('/auth/logout')

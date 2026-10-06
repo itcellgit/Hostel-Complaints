@@ -9,6 +9,7 @@ import { useCrud } from '../../../src/hooks/useCrud'
 import { Screen, Card, Row, Button, Field, Loader, ErrorNote } from '../../../src/components/ui'
 import { SelectField } from '../../../src/components/form'
 import { FormSheet } from '../../../src/components/FormSheet'
+import { ImpersonateButton } from '../../../src/components/Impersonation'
 import { formatDate } from '../../../src/lib/format'
 
 export default function StaffDetail() {
@@ -111,6 +112,12 @@ export default function StaffDetail() {
           }
         />
       </View>
+      <ImpersonateButton
+        userId={staff.userId}
+        label={`${staff.firstName} ${staff.lastName ?? ''}`.trim()}
+        disabled={!staff.user?.isActive}
+        disabledReason="This login is disabled."
+      />
       <Button
         title="Delete this person"
         variant="danger"

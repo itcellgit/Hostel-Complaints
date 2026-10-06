@@ -19,10 +19,12 @@ userRouter.use(requireAuth, requireRole('ADMIN'))
 // The form sends '' for untouched optional fields.
 const optionalDepartment = z.enum(DEPARTMENTS).or(z.literal('')).optional().transform((v) => v || undefined)
 const optionalPhone = z.string().trim().max(20).optional().transform((v) => v || undefined)
+const optionalName = z.string().trim().max(100).optional().transform((v) => v || undefined)
 
 const userListSelect = {
   id: true,
   loginId: true,
+  name: true,
   role: true,
   isActive: true,
   passwordResetRequestedAt: true,
@@ -73,6 +75,7 @@ userRouter.get(
 const createUserSchema = z.object({
   loginId: z.string().email(),
   role: z.enum(OFFICE_ROLES),
+  name: optionalName,
   department: optionalDepartment,
   phoneNumber: optionalPhone,
   principalCollegeId: z.string().optional(),
@@ -102,6 +105,7 @@ userRouter.post(
           loginId: data.loginId,
           passwordHash,
           role: data.role,
+          name: data.name,
           department: data.department,
           phoneNumber: data.phoneNumber,
           principalCollegeId: data.role === 'PRINCIPAL' ? data.principalCollegeId : undefined,
@@ -122,6 +126,7 @@ userRouter.post(
 
 const updateUserSchema = z.object({
   loginId: z.string().email().optional(),
+  name: optionalName,
   isActive: z.boolean().optional(),
   department: optionalDepartment,
   phoneNumber: optionalPhone,
@@ -141,6 +146,7 @@ userRouter.patch(
         where: { id: existing.id },
         data: {
           loginId: data.loginId,
+          name: data.name,
           isActive: data.isActive,
           department: data.department,
           phoneNumber: data.phoneNumber,
@@ -161,6 +167,7 @@ userRouter.patch(
       select: {
         id: true,
         loginId: true,
+        name: true,
         role: true,
         isActive: true,
         passwordResetRequestedAt: true,

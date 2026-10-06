@@ -392,7 +392,7 @@ export default function ComplaintDetailPage({ basePath }) {
                   <Select value={maintainerId} onChange={(e) => setMaintainerId(e.target.value)}>
                     <option value="">Select a maintainer…</option>
                     {maintainers.map((m) => (
-                      <option key={m.id} value={m.id}>{m.loginId}</option>
+                      <option key={m.id} value={m.id}>{m.name ? `${m.name} — ${m.loginId}` : m.loginId}</option>
                     ))}
                   </Select>
                 </FormField>
