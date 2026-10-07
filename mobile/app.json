@@ -3,6 +3,14 @@
     "name": "KLS Hostel Complaints",
     "slug": "kls-hostel-complaints",
     "version": "0.1.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/412d93ab-cd75-4a59-9c47-83df079958c6",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "orientation": "portrait",
     "scheme": "klshcp",
     "userInterfaceStyle": "light",
@@ -20,7 +28,7 @@
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "bundler": "metro",
