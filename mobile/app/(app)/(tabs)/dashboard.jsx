@@ -8,7 +8,7 @@ import { useAuth } from '../../../src/auth/AuthContext'
 import { Screen, Card, Loader, ErrorNote, Row, Button } from '../../../src/components/ui'
 import { ComplaintCard } from '../../../src/components/ComplaintCard'
 import { STATUS_LABEL, STATUS_COLOR, ROLE_LABEL } from '../../../src/lib/roles'
-import { formatCurrency } from '../../../src/lib/format'
+import { formatCurrency, formatDuration } from '../../../src/lib/format'
 import { HBars, VBars } from '../../../src/components/MiniBars'
 import { AgingSheet } from '../../../src/components/AgingSheet'
 
@@ -186,7 +186,7 @@ function OfficerDashboard({ data }) {
       </View>
       <Stat
         label="Avg resolution time"
-        value={data.complaints?.resolution?.avgMs != null ? `${Math.round(data.complaints.resolution.avgMs / 3600000)}h` : '—'}
+        value={formatDuration(data.complaints?.resolution?.avgMs)}
         className="border-indigo-200 bg-indigo-50"
         valueClassName="text-indigo-700"
         labelClassName="text-indigo-700"
