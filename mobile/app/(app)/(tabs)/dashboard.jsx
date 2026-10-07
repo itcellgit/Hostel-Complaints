@@ -12,11 +12,11 @@ import { formatCurrency } from '../../../src/lib/format'
 import { HBars, VBars } from '../../../src/components/MiniBars'
 import { AgingSheet } from '../../../src/components/AgingSheet'
 
-function Stat({ label, value, onPress }) {
+function Stat({ label, value, onPress, className = '', valueClassName = '', labelClassName = '' }) {
   const body = (
-    <Card className="flex-1">
-      <Text className="text-2xl font-bold text-slate-900">{value}</Text>
-      <Text className="text-xs text-slate-500 mt-1">{label}</Text>
+    <Card className={`flex-1 ${className}`}>
+      <Text className={`text-2xl font-bold text-slate-900 ${valueClassName}`}>{value}</Text>
+      <Text className={`text-xs text-slate-500 mt-1 ${labelClassName}`}>{label}</Text>
     </Card>
   )
   return onPress ? (
@@ -144,6 +144,7 @@ function OfficerDashboard({ data }) {
   if (!data) return null
   const byStatus = data.complaints?.byStatus ?? {}
   const aging = data.complaints?.aging ?? {}
+  const resolutionCount = data.complaints?.resolution?.count ?? 0
   return (
     <>
       <View className="flex-row gap-3">
@@ -157,11 +158,40 @@ function OfficerDashboard({ data }) {
       <View>
         <Text className="font-semibold text-slate-900 mb-2">Pending, by time in same status</Text>
         <View className="flex-row gap-3">
-          <Stat label="0–3 days" value={aging.neutral ?? 0} onPress={() => setBucket('neutral')} />
-          <Stat label="3–7 days" value={aging.warning ?? 0} onPress={() => setBucket('warning')} />
-          <Stat label="7+ days" value={aging.danger ?? 0} onPress={() => setBucket('danger')} />
+          <Stat
+            label="0–3 days"
+            value={aging.neutral ?? 0}
+            onPress={() => setBucket('neutral')}
+            className="border-slate-200 bg-slate-50"
+            valueClassName="text-slate-700"
+            labelClassName="text-slate-600"
+          />
+          <Stat
+            label="3–7 days"
+            value={aging.warning ?? 0}
+            onPress={() => setBucket('warning')}
+            className="border-amber-300 bg-amber-50"
+            valueClassName="text-amber-700"
+            labelClassName="text-amber-700"
+          />
+          <Stat
+            label="7+ days"
+            value={aging.danger ?? 0}
+            onPress={() => setBucket('danger')}
+            className="border-red-300 bg-red-50"
+            valueClassName="text-red-700"
+            labelClassName="text-red-700"
+          />
         </View>
       </View>
+      <Stat
+        label="Avg resolution time"
+        value={data.complaints?.resolution?.avgMs != null ? `${Math.round(data.complaints.resolution.avgMs / 3600000)}h` : '—'}
+        className="border-indigo-200 bg-indigo-50"
+        valueClassName="text-indigo-700"
+        labelClassName="text-indigo-700"
+      />
+      <Text className="-mt-1 text-xs text-slate-500">across {resolutionCount} resolved complaints</Text>
       <AgingSheet bucket={bucket} onClose={() => setBucket(null)} />
       <Card>
         <Text className="font-semibold text-slate-900 mb-3">By status</Text>
