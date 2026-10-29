@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { LogIn, ShieldCheck, KeyRound, Send, CheckCircle2 } from 'lucide-react'
+import { LogIn, ShieldCheck, KeyRound, Send, CheckCircle2, Smartphone, Download } from 'lucide-react'
 import { useAuth } from '../context/authContext.js'
 import * as authApi from '../api/auth.js'
 import { Button } from '../components/ui/Button.jsx'
@@ -10,6 +10,43 @@ import { Modal } from '../components/ui/Modal.jsx'
 import { homeFor } from '../lib/roles.js'
 import klsLogo from '../assets/kls-logo.jpg'
 import klsCampus from '../assets/kls-campus.jpg'
+import androidAppQr from '../assets/android-app-qr.png'
+
+// EAS build page the QR points to — also linked directly for students who
+// open the portal on their phone and so can't scan their own screen.
+const ANDROID_APP_URL =
+  'https://expo.dev/accounts/itcell/projects/kls-hostel-complaints/builds/7e061e9e-d41a-4fa5-9753-a635fd97efd3'
+
+function AndroidAppModal({ onClose }) {
+  return (
+    <Modal title="Get the Android app" onClose={onClose} footer={<Button variant="secondary" onClick={onClose}>Close</Button>}>
+      <div className="flex flex-col items-center text-center">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Scan this QR code with your phone's camera to download the KLS Hostel Complaints app.
+        </p>
+        <img
+          src={androidAppQr}
+          alt="QR code to download the Android app"
+          className="mt-4 h-56 w-56 rounded-lg border border-slate-200 bg-white p-2"
+        />
+        <a
+          href={ANDROID_APP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+        >
+          <Download className="h-4 w-4" strokeWidth={2.25} />
+          On your phone already? Tap here to download
+        </a>
+        <ol className="mt-4 w-full list-decimal space-y-1 rounded-lg bg-slate-50 py-3 pl-8 pr-4 text-left text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
+          <li>Open the link and tap <span className="font-medium">Install</span> to download the APK.</li>
+          <li>If asked, allow your browser to <span className="font-medium">install unknown apps</span>.</li>
+          <li>Open the app and sign in with your USN and portal password.</li>
+        </ol>
+      </div>
+    </Modal>
+  )
+}
 
 function ForgotPasswordModal({ onClose }) {
   const [loginId, setLoginId] = useState('')
@@ -71,6 +108,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showForgot, setShowForgot] = useState(false)
+  const [showAndroidApp, setShowAndroidApp] = useState(false)
 
   if (user) {
     const dest = location.state?.from?.pathname ?? homeFor(user.role)
@@ -97,6 +135,15 @@ export default function LoginPage() {
       style={{ backgroundImage: `url(${klsCampus})` }}
     >
       <div className="absolute inset-0 bg-slate-950/70" aria-hidden="true" />
+
+      <button
+        type="button"
+        onClick={() => setShowAndroidApp(true)}
+        className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+      >
+        <Smartphone className="h-4 w-4" strokeWidth={2.25} />
+        Get Android app
+      </button>
 
       <div className="relative w-full max-w-sm animate-fade-in-up">
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900">
@@ -157,6 +204,7 @@ export default function LoginPage() {
       </div>
 
       {showForgot && <ForgotPasswordModal onClose={() => setShowForgot(false)} />}
+      {showAndroidApp && <AndroidAppModal onClose={() => setShowAndroidApp(false)} />}
     </div>
   )
 }
